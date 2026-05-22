@@ -1,5 +1,26 @@
 # robot-dh-infra
 
+## 目录
+
+- [1. 项目目的](#1-项目目的)
+- [2. 当前部署结论](#2-当前部署结论)
+- [3. 磁盘与安全边界](#3-磁盘与安全边界)
+- [4. 目录结构](#4-目录结构)
+- [5. 初始化与启动流程](#5-初始化与启动流程)
+- [6. Compose 行为说明](#6-compose-行为说明)
+- [7. 组件说明](#7-组件说明)
+- [8. WSL 接入方式总览](#8-wsl-接入方式总览)
+- [9. WSL 接入清单](#9-wsl-接入清单)
+- [10. kind / K8s 接入清单](#10-kind--k8s-接入清单)
+- [10.5 v1.4 数据湖基础设施](#105-v14-数据湖基础设施)
+- [10.6 当前数据资产 manifest](#106-当前数据资产-manifest)
+- [11. 备份与恢复](#11-备份与恢复)
+- [12. 常用运维命令](#12-常用运维命令)
+- [13. 验收与验证命令](#13-验收与验证命令)
+- [14. systemd 开机自启](#14-systemd-开机自启)
+- [15. 常见故障与处理](#15-常见故障与处理)
+- [16. 当前建议](#16-当前建议)
+
 ## 1. 项目目的
 
 `robot-dh-infra` 是 `robot-data-harness` 的远端基础设施项目，用于把当前本地 Win11 / WSL / kind 环境中的持久化状态与对象存储能力迁移到云服务器。
@@ -695,6 +716,135 @@ v1.4 单独提供面向数据湖的客户端模板，与 v1.3 模板并存：
 - `client/k8s-create-lake-secret.example.sh`：示例脚本，通过环境变量注入真实密码并用 `kubectl apply` 创建 / 更新 Secret
 
 WSL 接入流程不变，只需要把 `source ./client/robot-dh-remote.env` 替换成 `source ./client/robot-dh-lake.env` 即可获得 lake 相关变量。
+
+## 10.6 当前数据资产 manifest
+
+本章节给出当前服务器上**已存在**的数据资产清单，便于运维、回放和审计。结构规范见 `docs/lake_layout.md`，本节只反映"当下这台机器上实际有什么"。
+
+> 截至 `2026-05-22`：数据集和 lake 各层都是**样本量级**（百 MB ~ GiB），用于打通 ETL 与 quality gate 流程，正式数据后续单独规划。
+
+### 10.6.1 物理存储概览
+
+| 维度 | 当前状态 |
+|------|----------|
+| 数据根目录 | `/data/robot-dh/` |
+| 所在分区 | `/dev/vda2`（root filesystem） |
+| 分区容量 | 120 GiB |
+| 已用容量 | ~14 GiB |
+| 数据资产合计 | ~3.7 GiB |
+| 预留数据盘 | `/dev/vdb`（100 GiB，**未挂载**） |
+
+注意：
+
+- `/dev/vdb` 是当前预留的独立数据盘，尚未分区 / 格式化 / 挂载，禁止自动操作（见 [3. 磁盘与安全边界](#3-磁盘与安全边界)）。
+- 后续数据量上来后再单独规划 `/dev/vdb` 的迁移方案，目前 MinIO 后端、PostgreSQL data、备份目录都落在 root filesystem。
+
+### 10.6.2 本地目录数据
+
+`/data/robot-dh/` 各子目录当前占用：
+
+| 子目录 | 占用 | 内容 |
+|--------|------|------|
+| `datasets/raw/` | 1.8 GiB | 原始数据集本地缓存（与 MinIO `robot-datasets/raw/` 同步） |
+| `datasets/manifests/` | 2.4 MiB | 数据集来源 / 校验 / 索引清单，包含 quality 报告 |
+| `minio/data/` | 1.9 GiB | MinIO 后端存储（承载 4 个 bucket） |
+| `postgres/data/` | 152 KiB | PostgreSQL data 目录 |
+| `redis/data/` | 16 KiB | Redis AOF 数据 |
+| `cache/` / `logs/` / `tmp/` | < 1 MiB | 缓存、日志、临时目录 |
+
+`datasets/raw/` 内的样本数据集来源（与 `manifests/*_source.json` 对应）：
+
+| Dataset | 本地路径 | 大小 | 来源 repo | revision | 下载工具 |
+|---------|----------|------|-----------|----------|----------|
+| `droid/lerobot_sample` | `raw/droid/lerobot_sample/` | 1.6 GiB | HF `lerobot/droid_1.0.1` | `bd92a2c4` | `huggingface_hub.snapshot_download` |
+| `droid/calibration` | `raw/droid/calibration/` | 32 KiB | HF `KarlP/droid` | `cbbf1ac2` | `huggingface_hub.snapshot_download` |
+| `bridgedata_v2/sample` | `raw/bridgedata_v2/sample/` | 228 MiB | HF `mbodiai/oxe_bridge_v2`（`data/shard_0-*.parquet`） | n/a | `huggingface_hub.hf_hub_download` |
+| `robomimic/sample` | `raw/robomimic/sample/` | 45 MiB | HF `robomimic/robomimic_datasets` | `74fa0184` | `huggingface_hub.snapshot_download` |
+
+所有下载都走 `https://hf-mirror.com`（HuggingFace 国内镜像），原始路径与上游一致，可直接对账。
+
+### 10.6.3 MinIO bucket 数据
+
+四个 bucket 都已开启 versioning，应用账号 `MINIO_APP_ACCESS_KEY` 通过 `robot-dh-readwrite` + `robot-dh-lake-readwrite` 两条 policy 组合访问。
+
+| Bucket | 体积 | 对象数 | 定位 | 主要内容 |
+|--------|------|--------|------|----------|
+| `robot-datasets` | 1.8 GiB | 57 | v1.3 原始数据集集中地 | `raw/{droid, bridgedata_v2, robomimic}/...` + `manifests/*` |
+| `robot-dh-artifacts` | 9.9 MiB | 123 | validator / quality gate 报告产物 | `runs/{run_id}/{gate_report.json, report.html, report.json, plots/*.png}` |
+| `robot-dh-backups` | 0 B | 0 | PostgreSQL / MinIO 备份归档 | 暂无；由 `scripts/07_backup_postgres.sh` / `scripts/08_backup_minio.sh` 写入 |
+| `robot-lake` | 45 MiB | 33 | v1.4 数据湖统一 bucket | `raw/ ods/ dwd/ ads/ lineage/ tmp/` 六层 prefix |
+
+#### `robot-datasets` 主要对象
+
+| 对象 | 大小 | 格式 | 说明 |
+|------|------|------|------|
+| `raw/droid/lerobot_sample/videos/observation.images.exterior_2_left/chunk-000/file-000.mp4` | 494 MiB | MP4 | 外视角 2 左相机 |
+| `raw/droid/lerobot_sample/videos/observation.images.exterior_1_left/chunk-000/file-000.mp4` | 493 MiB | MP4 | 外视角 1 左相机 |
+| `raw/droid/lerobot_sample/videos/observation.images.wrist_left/chunk-000/file-000.mp4` | 481 MiB | MP4 | 腕部左相机 |
+| `raw/droid/lerobot_sample/data/chunk-000/file-000.parquet` | 82 MiB | Parquet | LeRobot 格式 pose + 索引 |
+| `raw/bridgedata_v2/sample/data/shard_0-00000-of-00001.parquet` | 227 MiB | Parquet | OXE Bridge V2 shard（含动作、状态、视频帧） |
+| `raw/robomimic/sample/v1.5/can/ph/low_dim_v15.hdf5` | 45 MiB | HDF5 | Robomimic low-dim 观测 |
+| `manifests/raw_dataset_summary.txt` | 3.2 KiB | TXT | 全量 raw 数据集体积汇总 |
+| `manifests/{dataset}_*_source.json` | ~300 B | JSON | 上游 repo / revision / 工具 / 时间 |
+| `manifests/{dataset}_*_sha256.txt` | 几 KB | TXT | 每文件 SHA256 |
+| `manifests/{dataset}_*_files.tsv` | 几 KB | TSV | 逐文件路径 + 大小索引 |
+
+#### `robot-dh-artifacts` 主要对象
+
+按 `runs/{run_id}/` 组织，单个 run 约 700 KiB：
+
+- `gate_report.json`：quality gate 结论
+- `report.html` / `report.json`：可视化报告
+- `plots/{euler_angles, velocity_profile, xy_clusters, z_press_events}.png`：4 张诊断图
+
+当前已落库的 run：`api-run-v13-test`、`k8s-demo`、`local-demo-v12-test`、`public-demo-v13`、`public-demo-v13-rerun` 等共 5+ 个，全部由主项目 `robot-data-harness` 写入。
+
+#### `robot-lake` 各层快照
+
+`robot-lake` 当前已被 ETL 写入两套样本：`droid/lerobot_sample` 和 `robomimic/sample`。每层都附带 `_manifest.json`。
+
+| Prefix | 体积 | 内容 |
+|--------|------|------|
+| `ods/droid/lerobot_sample/` | ~21 MiB | `pose.parquet`（321344 行）、`video_meta.parquet`、`episode_meta.parquet`（1074 行）+ `_manifest.json` |
+| `ods/robomimic/sample/` | ~1.6 MiB | `pose.parquet`、`episode_meta.parquet` + `_manifest.json` |
+| `dwd/droid/lerobot_sample/` | ~21 MiB | `pose_feature.parquet`、`press_event.parquet`（2194 个 press 事件）、`trajectory_segment.parquet`（22535 段）、`episode_feature.parquet`（1074 个 episode）+ `_manifest.json` |
+| `dwd/robomimic/sample/` | ~1.9 MiB | 同上四张 parquet + `_manifest.json` |
+| `ads/quality/` | ~38 KiB | `dataset_quality_summary.parquet`（2 行）、`validator_failure_stats.parquet`（7 行）、`episode_quality_score.parquet`（1274 行）+ `_manifest.json` |
+| `lineage/events/2026/05/22/*.jsonl` | ~4.5 KiB | 5 条血缘事件（normalize / build_features / build_ads） |
+
+每个 `_manifest.json` 包含的字段：
+
+- `dataset_id`、`version`、`layer`、`created_at`、`schema_version`
+- `source_uris` / `output_uri`
+- `files[]`：每个对象的 `path` / `uri` / `format` / `size_bytes` / `row_count` / `checksum_sha256`
+- `metrics`：ETL 输出统计（rows、duration_ms、episode 数、press 数等）
+- `job`：`job_id`、`job_type`、`started_at` / `finished_at` / `duration_sec`
+- `code.package_version`
+
+> 这些 lake 数据由主项目 `robot-data-harness` 的 ETL 作业写入，本仓库只负责 bucket / prefix / schema / policy，不直接生产业务数据。
+
+### 10.6.4 PostgreSQL 元数据
+
+应用账号 `robot_dh_app` 持有的业务表分两批：
+
+- v1.3：dataset registry、run history、gate result、metrics 等
+- v1.4：`lake_assets`、`etl_jobs`、`lineage_edges`、`dataset_versions`、`quality_snapshots`（由 `postgres/migrations/001_lake_metadata.sql` 创建）
+
+当前 `postgres/data` 体积 < 200 KiB，备份目录 `postgres/backups/` 暂为空。可通过 `./scripts/22_pg_lake_smoke_test.sh` 验证 v1.4 元数据表是否就绪。
+
+### 10.6.5 资产发现命令
+
+如需重新生成本节快照内容，按需执行：
+
+```bash
+cd /opt/robot-dh-infra
+
+./scripts/15_audit_raw_datasets.sh
+./scripts/19_audit_lake_layout.sh
+./scripts/20_list_remote_assets.sh
+```
+
+`20_list_remote_assets.sh` 会扫描 `robot-datasets/raw/` 与 `robot-lake/raw/`，在 `/data/robot-dh/logs/remote_assets_YYYYmmdd_HHMMSS.json` 落一份机器可读的快照。
 
 ## 11. 备份与恢复
 
