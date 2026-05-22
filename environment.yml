@@ -1,0 +1,15 @@
+name: robot-dh
+channels:
+  - defaults
+dependencies:
+  - python=3.12
+  - pip
+  - pip:
+      - boto3
+      - hf_transfer
+      - h5py
+      - huggingface_hub
+      - openxlab
+      - pandas
+      - pyarrow
+      - tqdm

@@ -1,0 +1,16 @@
+.env
+.env.*
+!.env.example
+
+*.dump
+data
+backups/*
+!backups/.gitkeep
+
+# Generated client exports may contain real hosts and credentials.
+client/robot-dh-*.env
+!client/robot-dh-*.env.example
+client/wsl-export-env.sh
+client/wsl-export-public-env.sh
+
+.cursor/

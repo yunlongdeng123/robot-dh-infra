@@ -1,0 +1,121 @@
+name: ${COMPOSE_PROJECT_NAME:-robot_dh_infra}
+
+networks:
+  robot-dh-net:
+    name: robot-dh-net
+    driver: bridge
+
+services:
+  postgres:
+    image: ${POSTGRES_IMAGE}
+    container_name: robot-dh-postgres
+    restart: unless-stopped
+    command:
+      - postgres
+      - -c
+      - config_file=/etc/postgresql/postgresql.conf
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      ROBOT_DH_APP_USER: ${ROBOT_DH_APP_USER}
+      ROBOT_DH_APP_PASSWORD: ${ROBOT_DH_APP_PASSWORD}
+      TRUSTED_CIDR: ${TRUSTED_CIDR:-}
+      POSTGRES_APP_TRUSTED_CIDRS: ${POSTGRES_APP_TRUSTED_CIDRS:-}
+      POSTGRES_APP_HBA_METHOD: ${POSTGRES_APP_HBA_METHOD:-md5}
+    ports:
+      - ${BIND_ADDR}:5432:5432
+    volumes:
+      - /data/robot-dh/postgres/data:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+      - ./postgres/conf/postgresql.conf:/etc/postgresql/postgresql.conf:ro
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks:
+      - robot-dh-net
+
+  minio:
+    image: ${MINIO_IMAGE}
+    container_name: robot-dh-minio
+    restart: unless-stopped
+    command:
+      - server
+      - /data
+      - --console-address
+      - :9001
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    ports:
+      - ${BIND_ADDR}:9000:9000
+      - ${BIND_ADDR}:9001:9001
+    volumes:
+      - /data/robot-dh/minio/data:/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - curl -fsS http://127.0.0.1:9000/minio/health/live >/dev/null || exit 1
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks:
+      - robot-dh-net
+
+  minio-init:
+    image: minio/mc:latest
+    container_name: robot-dh-minio-init
+    restart: "no"
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_APP_ACCESS_KEY: ${MINIO_APP_ACCESS_KEY}
+      MINIO_APP_SECRET_KEY: ${MINIO_APP_SECRET_KEY}
+      ROBOT_DH_DATA_BUCKET: ${ROBOT_DH_DATA_BUCKET}
+      ROBOT_DH_ARTIFACT_BUCKET: ${ROBOT_DH_ARTIFACT_BUCKET}
+      ROBOT_DH_BACKUP_BUCKET: ${ROBOT_DH_BACKUP_BUCKET}
+      ROBOT_DH_LAKE_BUCKET: ${ROBOT_DH_LAKE_BUCKET:-robot-lake}
+    volumes:
+      - ./minio/init/init_minio.sh:/init/init_minio.sh:ro
+      - ./minio/policies/robot_dh_readwrite.json:/policies/robot_dh_readwrite.json:ro
+      - ./minio/policies/robot_dh_lake_readwrite.json:/policies/robot_dh_lake_readwrite.json:ro
+    entrypoint:
+      - /bin/sh
+      - /init/init_minio.sh
+    networks:
+      - robot-dh-net
+
+  redis:
+    image: ${REDIS_IMAGE}
+    container_name: robot-dh-redis
+    restart: unless-stopped
+    command:
+      - /bin/sh
+      - -c
+      - exec redis-server /usr/local/etc/redis/redis.conf --requirepass "$$REDIS_PASSWORD"
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    ports:
+      - ${BIND_ADDR}:6379:6379
+    volumes:
+      - /data/robot-dh/redis/data:/data
+      - ./redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - redis-cli -a "$$REDIS_PASSWORD" ping | grep -q PONG
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - robot-dh-net
