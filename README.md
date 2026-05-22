@@ -14,6 +14,7 @@
 - [10. kind / K8s 接入清单](#10-kind--k8s-接入清单)
 - [10.5 v1.4 数据湖基础设施](#105-v14-数据湖基础设施)
 - [10.6 当前数据资产 manifest](#106-当前数据资产-manifest)
+- [10.7 v1.5 scale / benchmark / Argo 基础设施](#107-v15-scale--benchmark--argo-基础设施)
 - [11. 备份与恢复](#11-备份与恢复)
 - [12. 常用运维命令](#12-常用运维命令)
 - [13. 验收与验证命令](#13-验收与验证命令)
@@ -721,7 +722,7 @@ WSL 接入流程不变，只需要把 `source ./client/robot-dh-remote.env` 替�
 
 本章节给出当前服务器上**已存在**的数据资产清单，便于运维、回放和审计。结构规范见 `docs/lake_layout.md`，本节只反映"当下这台机器上实际有什么"。
 
-> 截至 `2026-05-22`：数据集和 lake 各层都是**样本量级**（百 MB ~ GiB），用于打通 ETL 与 quality gate 流程，正式数据后续单独规划。
+> 截至 `2026-05-23`：服务器已保留早期样本数据，并新增一批 `scale30` raw 数据。`scale30` 已完成本地文件大小校验，并已镜像到 MinIO `robot-datasets` bucket。
 
 ### 10.6.1 物理存储概览
 
@@ -729,9 +730,10 @@ WSL 接入流程不变，只需要把 `source ./client/robot-dh-remote.env` 替�
 |------|----------|
 | 数据根目录 | `/data/robot-dh/` |
 | 所在分区 | `/dev/vda2`（root filesystem） |
-| 分区容量 | 120 GiB |
-| 已用容量 | ~14 GiB |
-| 数据资产合计 | ~3.7 GiB |
+| 分区容量 | 118 GiB 可用视图（底层盘 120 GiB） |
+| root filesystem 已用容量 | ~63 GiB |
+| `/data/robot-dh` 主要占用 | `datasets/` ~27 GiB；`minio/` ~27 GiB |
+| 数据资产合计 | 本地 raw + MinIO 后端约 54 GiB（包含同一批 raw 数据的两份落点） |
 | 预留数据盘 | `/dev/vdb`（100 GiB，**未挂载**） |
 
 注意：
@@ -745,9 +747,9 @@ WSL 接入流程不变，只需要把 `source ./client/robot-dh-remote.env` 替�
 
 | 子目录 | 占用 | 内容 |
 |--------|------|------|
-| `datasets/raw/` | 1.8 GiB | 原始数据集本地缓存（与 MinIO `robot-datasets/raw/` 同步） |
-| `datasets/manifests/` | 2.4 MiB | 数据集来源 / 校验 / 索引清单，包含 quality 报告 |
-| `minio/data/` | 1.9 GiB | MinIO 后端存储（承载 4 个 bucket） |
+| `datasets/raw/` | ~27 GiB | 原始数据集本地缓存（与 MinIO `robot-datasets/raw/` 同步） |
+| `datasets/manifests/` | ~2.6 MiB | 数据集来源 / 校验 / 索引清单，包含 quality 报告与 scale30 manifest |
+| `minio/data/` | ~27 GiB | MinIO 后端存储（承载 4 个 bucket，含 `robot-datasets` raw 镜像） |
 | `postgres/data/` | 152 KiB | PostgreSQL data 目录 |
 | `redis/data/` | 16 KiB | Redis AOF 数据 |
 | `cache/` / `logs/` / `tmp/` | < 1 MiB | 缓存、日志、临时目录 |
@@ -763,13 +765,30 @@ WSL 接入流程不变，只需要把 `source ./client/robot-dh-remote.env` 替�
 
 所有下载都走 `https://hf-mirror.com`（HuggingFace 国内镜像），原始路径与上游一致，可直接对账。
 
+`datasets/raw/scale30/` 内的新增 scale30 数据：
+
+| Dataset | 本地路径 | 文件数 | manifest 校验 | 本地占用 | 说明 |
+|---------|----------|--------|----------------|----------|------|
+| `bridgedata_v2_scale30` | `raw/scale30/bridgedata_v2_scale30/v1/` | 2 | 2/2 存在，大小匹配 | 228 MiB | BridgeData V2 parquet shard + README |
+| `droid_lerobot_scale30` | `raw/scale30/droid_lerobot_scale30/v1/` | 181 | 181/181 存在，大小匹配 | 18 GiB | LeRobot parquet / mp4 / meta 子集 |
+| `robomimic_scale30` | `raw/scale30/robomimic_scale30/v1/` | 27 | 27/27 存在，大小匹配 | 6.2 GiB | Robomimic HDF5 子集 |
+
+本次 scale30 manifest 校验结果：
+
+```text
+bridgedata_v2_scale30: files=2 present=2 missing=0 wrong_size=0 bytes_present=238439540
+droid_lerobot_scale30: files=181 present=181 missing=0 wrong_size=0 bytes_present=19269486538
+robomimic_scale30: files=27 present=27 missing=0 wrong_size=0 bytes_present=6557021689
+TOTAL: files=210 bytes_present=26064947767 GiB=24.275 ok=True
+```
+
 ### 10.6.3 MinIO bucket 数据
 
 四个 bucket 都已开启 versioning，应用账号 `MINIO_APP_ACCESS_KEY` 通过 `robot-dh-readwrite` + `robot-dh-lake-readwrite` 两条 policy 组合访问。
 
 | Bucket | 体积 | 对象数 | 定位 | 主要内容 |
 |--------|------|--------|------|----------|
-| `robot-datasets` | 1.8 GiB | 57 | v1.3 原始数据集集中地 | `raw/{droid, bridgedata_v2, robomimic}/...` + `manifests/*` |
+| `robot-datasets` | 26 GiB | 701 | v1.3 原始数据集集中地 | `raw/{droid, bridgedata_v2, robomimic}/...`、`raw/{bridgedata_v2_scale30, droid_lerobot_scale30, robomimic_scale30}/...` + `manifests/*` |
 | `robot-dh-artifacts` | 9.9 MiB | 123 | validator / quality gate 报告产物 | `runs/{run_id}/{gate_report.json, report.html, report.json, plots/*.png}` |
 | `robot-dh-backups` | 0 B | 0 | PostgreSQL / MinIO 备份归档 | 暂无；由 `scripts/07_backup_postgres.sh` / `scripts/08_backup_minio.sh` 写入 |
 | `robot-lake` | 45 MiB | 33 | v1.4 数据湖统一 bucket | `raw/ ods/ dwd/ ads/ lineage/ tmp/` 六层 prefix |
@@ -784,10 +803,26 @@ WSL 接入流程不变，只需要把 `source ./client/robot-dh-remote.env` 替�
 | `raw/droid/lerobot_sample/data/chunk-000/file-000.parquet` | 82 MiB | Parquet | LeRobot 格式 pose + 索引 |
 | `raw/bridgedata_v2/sample/data/shard_0-00000-of-00001.parquet` | 227 MiB | Parquet | OXE Bridge V2 shard（含动作、状态、视频帧） |
 | `raw/robomimic/sample/v1.5/can/ph/low_dim_v15.hdf5` | 45 MiB | HDF5 | Robomimic low-dim 观测 |
+| `raw/droid_lerobot_scale30/v1/{data,videos,meta}/...` | 18 GiB 合计 | Parquet / MP4 / JSON | scale30 LeRobot 子集，含 data、videos、meta |
+| `raw/robomimic_scale30/v1/v1.5/**/*.hdf5` | 6.1 GiB 合计 | HDF5 | scale30 Robomimic 子集 |
+| `raw/bridgedata_v2_scale30/v1/data/shard_0-00000-of-00001.parquet` | 227 MiB | Parquet | scale30 BridgeData V2 shard |
+| `manifests/scale30/*` | 242 KiB 合计 | JSON / TXT | scale30 下载选择清单与 SHA256 摘要 |
 | `manifests/raw_dataset_summary.txt` | 3.2 KiB | TXT | 全量 raw 数据集体积汇总 |
 | `manifests/{dataset}_*_source.json` | ~300 B | JSON | 上游 repo / revision / 工具 / 时间 |
 | `manifests/{dataset}_*_sha256.txt` | 几 KB | TXT | 每文件 SHA256 |
 | `manifests/{dataset}_*_files.tsv` | 几 KB | TSV | 逐文件路径 + 大小索引 |
+
+`robot-datasets` 中当前主要 raw 前缀占用：
+
+| Prefix | 体积 | 对象数 |
+|--------|------|--------|
+| `raw/droid_lerobot_scale30/` | 18 GiB | 546 |
+| `raw/robomimic_scale30/` | 6.1 GiB | 84 |
+| `raw/bridgedata_v2_scale30/` | 227 MiB | 9 |
+| `raw/droid/` | 1.5 GiB | 29 |
+| `raw/bridgedata_v2/` | 227 MiB | 5 |
+| `raw/robomimic/` | 45 MiB | 9 |
+| `manifests/scale30/` | 242 KiB | 5 |
 
 #### `robot-dh-artifacts` 主要对象
 
@@ -845,6 +880,154 @@ cd /opt/robot-dh-infra
 ```
 
 `20_list_remote_assets.sh` 会扫描 `robot-datasets/raw/` 与 `robot-lake/raw/`，在 `/data/robot-dh/logs/remote_assets_YYYYmmdd_HHMMSS.json` 落一份机器可读的快照。
+
+## 10.7 v1.5 scale / benchmark / Argo 基础设施
+
+v1.5 不引入新进程，只在 v1.4 基础上扩展运维与元数据。详细 runbook 见：
+
+- [`docs/v1_5_scale_runbook.md`](docs/v1_5_scale_runbook.md)
+- [`docs/v1_5_storage_plan.md`](docs/v1_5_storage_plan.md)
+- [`docs/v1_5_argo_env.md`](docs/v1_5_argo_env.md)
+
+### 10.7.1 scale30 数据资产说明
+
+当前服务器已有约 24.275 GiB 的 scale30 数据，分布如下（详见 [10.6 当前数据资产 manifest](#106-当前数据资产-manifest)）：
+
+| Dataset | 本地路径 | 大小 |
+|---------|----------|------|
+| `bridgedata_v2_scale30` | `raw/scale30/bridgedata_v2_scale30/v1/` | 228 MiB |
+| `droid_lerobot_scale30` | `raw/scale30/droid_lerobot_scale30/v1/` | 18 GiB |
+| `robomimic_scale30` | `raw/scale30/robomimic_scale30/v1/` | 6.2 GiB |
+| **合计** | | **24.275 GiB** |
+
+执行 `./scripts/27_audit_scale30_assets.sh` 可重新生成审计 JSON + Markdown，落到 `/data/robot-dh/datasets/manifests/scale30/scale30_audit_YYYYmmdd_HHMMSS.{json,md}`。
+
+> 拉取 scale30 数据的原脚本保留为 `scripts/32_pull_scale_30gb_hf.sh`（v1.5 把 25 号让给了 storage_pressure_report）。
+
+### 10.7.2 存储风险说明
+
+| 维度 | 状态 |
+|------|------|
+| root filesystem 容量 | 约 118 GiB，已用约 63 GiB |
+| `/data/robot-dh` 占用 | `datasets/` ~27 GiB + `minio/` ~27 GiB |
+| `/dev/vdb`（预留数据盘） | 100 GiB，**未挂载** |
+
+跑 30GB 级 ETL 之前必须执行：
+
+```bash
+cd /opt/robot-dh-infra
+./scripts/25_storage_pressure_report.sh
+```
+
+报告会打印 `lsblk / df / findmnt / du`、MinIO bucket 用量、`/dev/vdb` 状态；root filesystem 可用 < 30 GiB 时输出 `WARNING`。JSON 落到 `/data/robot-dh/logs/storage_pressure_*.json`。
+
+`/dev/vdb` 暂不自动操作。要做迁移计划：
+
+```bash
+./scripts/26_plan_vdb_migration.sh
+```
+
+脚本仅生成迁移命令草案与回滚计划，**不**执行 `mkfs / mount / fstab` 改动。任何破坏性命令必须人工二次确认后执行。
+
+`28_minio_lifecycle_plan.sh` 默认 dry-run，打印各 bucket 的 `du / version / ilm`，并给出推荐策略；`--apply` 仅作用于 `robot-lake/tmp/` 和 `robot-dh-artifacts/tmp/` 两条 prefix，需要交互输入 `APPLY_LIFECYCLE` 才会真正写。
+
+### 10.7.3 v1.5 PostgreSQL schema
+
+`postgres/migrations/002_v1_5_scale_benchmark.sql` 新增 6 张表，与 v1.3 / v1.4 已有表并存，全部 `CREATE IF NOT EXISTS`：
+
+| 表 | 主要用途 |
+|----|---------|
+| `etl_perf_runs` | 单 ETL phase 的 input/output bytes、duration、peak memory 等性能数据 |
+| `etl_shards` | scale ETL 的分片计划（`UNIQUE(plan_id, shard_id)`） |
+| `benchmark_runs` | benchmark suite 单次执行的总览（`benchmark_id` 唯一） |
+| `benchmark_cases` | benchmark 单 case 的 expected / actual / passed |
+| `argo_workflow_runs` | Argo Workflow 元数据 + 状态 + 完整 JSON 快照 |
+| `runtime_events` | 通用事件总线（CLI / ETL / Argo / FastAPI），按 `event_id` 唯一 |
+
+应用与验收：
+
+```bash
+cd /opt/robot-dh-infra
+./scripts/29_pg_apply_v1_5_schema.sh     # 幂等，复用管理员账号
+./scripts/30_pg_v1_5_smoke_test.sh       # 用 robot_dh_app 在 6 张表插入 + 删除 smoke 行
+```
+
+`29_pg_apply_v1_5_schema.sh` 通过 `PGOPTIONS='-c robot_dh.app_user=$ROBOT_DH_APP_USER'` 把应用账号注入 migration，migration 末尾的 `DO` 块会自动给应用账号 `GRANT SELECT/INSERT/UPDATE/DELETE` + 序列权限，避免重复维护 GRANT 脚本。
+
+### 10.7.4 Argo 远程连接注意事项
+
+| 接入点 | 允许的连接方式 |
+|--------|----------------|
+| WSL host 本身的进程（CLI / FastAPI） | SSH tunnel（`127.0.0.1:15432/19000/16379`）或公网直连 |
+| kind / Argo Pod | **必须**走公网 IP/DNS（`5432 / 9000 / 6379`），不能用 WSL 上的 `127.0.0.1` |
+
+`./client/k8s-create-argo-secret.example.sh` 默认拒绝 `127.0.0.1` / `localhost` 作为 `PUBLIC_HOST`，除非显式加 `--allow-localhost`。
+
+`scripts/12_firewall_plan.sh` 仍是控制端口暴露范围的唯一入口；任何对外暴露 5432/9000/6379 的操作都必须先在防火墙白名单中放行。
+
+### 10.7.5 为 WSL / kind / Argo 注入 env
+
+云端生成 env：
+
+```bash
+cd /opt/robot-dh-infra
+./scripts/31_argowf_remote_env_export.sh                # 默认 public + 脱敏
+./scripts/31_argowf_remote_env_export.sh --show-secrets # 写 client/robot-dh-v1-5.env (chmod 600)
+./scripts/31_argowf_remote_env_export.sh --mode tunnel  # 仅给 WSL host 本机进程使用
+```
+
+WSL 端注入 Secret：
+
+```bash
+# namespace / ServiceAccount / RBAC（一次性）
+kubectl apply -f client/k8s-argo-secret.example.yaml
+
+# 真实凭据
+PUBLIC_HOST=<云端公网 IP/DNS> \
+ROBOT_DH_APP_PASSWORD=*** \
+MINIO_APP_SECRET_KEY=*** \
+REDIS_PASSWORD=*** \
+./client/k8s-create-argo-secret.example.sh
+```
+
+Workflow 引用：
+
+```yaml
+spec:
+  serviceAccountName: robot-dh-argo
+  templates:
+    - name: normalize
+      container:
+        image: ghcr.io/your-org/robot-data-harness:v1.5
+        envFrom:
+          - secretRef:
+              name: robot-dh-v1-5-secrets
+```
+
+更详细的 RBAC / 故障排查见 [`docs/v1_5_argo_env.md`](docs/v1_5_argo_env.md)。
+
+### 10.7.6 v1.5 验收
+
+```bash
+cd /opt/robot-dh-infra
+
+./scripts/06_healthcheck.sh
+./scripts/25_storage_pressure_report.sh
+./scripts/27_audit_scale30_assets.sh
+./scripts/28_minio_lifecycle_plan.sh
+./scripts/29_pg_apply_v1_5_schema.sh
+./scripts/30_pg_v1_5_smoke_test.sh
+./scripts/31_argowf_remote_env_export.sh
+```
+
+通过条件：
+
+- 所有脚本以 `0` 退出
+- `27_audit_scale30_assets.sh` 报告中 `missing_local / missing_minio / wrong_size` 均为 0
+- `25_storage_pressure_report.sh` 没有 `WARNING:` 级别条目
+- `30_pg_v1_5_smoke_test.sh` 在 `robot_dh_app` 账号下 6 张表均可插入 + 删除
+- v1.3 / v1.4 已有表 / bucket / 数据无任何变更
+- `client/robot-dh-v1-5.env` 仅在显式传 `--show-secrets` 时生成，且权限为 `0600`
 
 ## 11. 备份与恢复
 
@@ -968,6 +1151,22 @@ cd /opt/robot-dh-infra
 - `19_audit_lake_layout.sh` 显示 6 个 prefix 占位齐全、5 张元数据表存在
 - `20_list_remote_assets.sh` 在 `/data/robot-dh/logs/` 下落一份 JSON 报告
 - `24_export_lake_client_env.sh` 默认输出脱敏，不会把真实密码打到 stdout
+
+### v1.5 scale / benchmark / Argo 验收
+
+```bash
+cd /opt/robot-dh-infra
+
+./scripts/06_healthcheck.sh
+./scripts/25_storage_pressure_report.sh
+./scripts/27_audit_scale30_assets.sh
+./scripts/28_minio_lifecycle_plan.sh
+./scripts/29_pg_apply_v1_5_schema.sh
+./scripts/30_pg_v1_5_smoke_test.sh
+./scripts/31_argowf_remote_env_export.sh
+```
+
+通过条件见 [10.7.6 v1.5 验收](#1076-v15-验收)。
 
 ### 如果 Docker 未安装
 
