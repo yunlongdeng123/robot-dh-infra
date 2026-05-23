@@ -30,10 +30,15 @@ CREATE TABLE IF NOT EXISTS etl_perf_runs (
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
+-- etl_shards：scale ETL 的分片记录。
+-- shard_id 是 'plan-<ts>-<hash>::shard-<idx>' 复合字符串，与主项目 SQLAlchemy 模型一致；
+-- shard_index 是 0-based 的分片序号（int），用于按序汇总 / 排错。
+-- shard_uri / assigned_worker 是 v1.5 早期遗留字段，主项目当前不写也不读，保留兼容，禁止用于新逻辑。
 CREATE TABLE IF NOT EXISTS etl_shards (
   id bigserial PRIMARY KEY,
   plan_id text NOT NULL,
-  shard_id int NOT NULL,
+  shard_id text NOT NULL,
+  shard_index int,
   shard_uri text,
   dataset_count int,
   input_bytes bigint,
@@ -41,34 +46,61 @@ CREATE TABLE IF NOT EXISTS etl_shards (
   assigned_worker text,
   started_at timestamptz,
   finished_at timestamptz,
+  duration_sec double precision,
+  succeeded int,
+  failed int,
+  skipped int,
+  summary_uri text,
+  error_message text,
   metrics_json jsonb,
   created_at timestamptz NOT NULL DEFAULT now(),
   UNIQUE (plan_id, shard_id)
 );
 
+-- benchmark_runs：与主项目 `robot-data-harness` benchmark workflow 对齐。
+-- 旧字段 status / duration_sec 仍保留；passed / failed / mismatched 是 case 级聚合计数。
 CREATE TABLE IF NOT EXISTS benchmark_runs (
   id bigserial PRIMARY KEY,
   benchmark_id text NOT NULL UNIQUE,
   suite_name text NOT NULL,
+  suite_path text,
   status text NOT NULL,
   started_at timestamptz,
   finished_at timestamptz,
   duration_sec double precision,
+  total_cases int,
+  passed int,
+  failed int,
+  mismatched int,
+  report_uri text,
   metrics_json jsonb,
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
+-- benchmark_cases：与主项目 SQLAlchemy 模型对齐。
+-- match 语义：
+--   TRUE  = actual_status 与 expected_status 匹配，
+--           且 expected_failed_validators 为空或是 actual_failed_validators 的子集
+--   FALSE = 不匹配或 case 运行异常
+--   NULL  = 未知 / 历史数据未回填
+-- 兼容字段：
+--   passed       = match 上线前的旧布尔列，主项目改写 match，exporter 按 COALESCE(match, passed) 聚合
+--   mutation_type = mutation 上线前的旧 text 列，主项目改写 mutation，exporter 按 COALESCE(mutation, mutation_type) 读
 CREATE TABLE IF NOT EXISTS benchmark_cases (
   id bigserial PRIMARY KEY,
   benchmark_id text NOT NULL,
   case_id text NOT NULL,
   dataset_uri text,
   mutation_type text,
+  mutation text,
   expected_status text,
   actual_status text,
   expected_failed_validators jsonb,
   actual_failed_validators jsonb,
   passed boolean,
+  match boolean,
+  duration_sec double precision,
+  error_message text,
   metrics_json jsonb,
   artifacts_uri text,
   created_at timestamptz NOT NULL DEFAULT now(),
@@ -115,6 +147,9 @@ CREATE INDEX IF NOT EXISTS idx_etl_shards_plan_id_status
 
 CREATE INDEX IF NOT EXISTS idx_benchmark_cases_benchmark_id_passed
   ON benchmark_cases (benchmark_id, passed);
+
+CREATE INDEX IF NOT EXISTS idx_benchmark_cases_benchmark_id_match
+  ON benchmark_cases (benchmark_id, match);
 
 CREATE INDEX IF NOT EXISTS idx_argo_workflow_runs_status_created_at
   ON argo_workflow_runs (status, created_at);

@@ -76,19 +76,40 @@ VALUES ('${JOB_ID}', '${RUN_ID}', 'smoke_dataset', '${RUN_ID}', 'normalize',
         1024, 2048, 10, 10, 0.5, 0.1, 0.1, 0.3, 64, 'smoke-worker', 'success',
         jsonb_build_object('smoke', true));
 
-INSERT INTO etl_shards (plan_id, shard_id, shard_uri, dataset_count, input_bytes, status, assigned_worker, metrics_json)
-VALUES ('${PLAN_ID}', 0, 's3://robot-lake/tmp/${PLAN_ID}/shard_0/', 1, 1024, 'success', 'smoke-worker',
+-- etl_shards：shard_id 是 'plan-...::shard-NNN' 复合 text；同时演练主项目模型用的新列。
+INSERT INTO etl_shards (plan_id, shard_id, shard_index, shard_uri, dataset_count, input_bytes,
+                        status, assigned_worker, started_at, finished_at, duration_sec,
+                        succeeded, failed, skipped, summary_uri, error_message, metrics_json)
+VALUES ('${PLAN_ID}', '${PLAN_ID}::shard-000', 0,
+        's3://robot-lake/tmp/${PLAN_ID}/shard_0/', 1, 1024,
+        'success', 'smoke-worker', now(), now(), 0.25,
+        1, 0, 0,
+        's3://robot-lake/tmp/${PLAN_ID}/shard_0/shard_summary.json', NULL,
         jsonb_build_object('smoke', true));
 
-INSERT INTO benchmark_runs (benchmark_id, suite_name, status, started_at, finished_at, duration_sec, metrics_json)
-VALUES ('${BENCH_ID}', 'smoke_suite', 'success', now(), now(), 0.25,
+-- benchmark_runs：同时写新列（suite_path / total_cases / passed / failed / mismatched / report_uri）。
+INSERT INTO benchmark_runs (benchmark_id, suite_name, suite_path, status,
+                            started_at, finished_at, duration_sec,
+                            total_cases, passed, failed, mismatched, report_uri, metrics_json)
+VALUES ('${BENCH_ID}', 'smoke_suite',
+        's3://robot-lake/tmp/${BENCH_ID}/suite.yaml',
+        'success', now(), now(), 0.25,
+        1, 1, 0, 0,
+        's3://robot-dh-artifacts/tmp/${BENCH_ID}/report.html',
         jsonb_build_object('smoke', true));
 
-INSERT INTO benchmark_cases (benchmark_id, case_id, dataset_uri, mutation_type, expected_status, actual_status,
-                             expected_failed_validators, actual_failed_validators, passed, metrics_json, artifacts_uri)
+-- benchmark_cases：同时演练旧列（passed / mutation_type）与新列（match / mutation / duration_sec / error_message）。
+INSERT INTO benchmark_cases (benchmark_id, case_id, dataset_uri,
+                             mutation_type, mutation,
+                             expected_status, actual_status,
+                             expected_failed_validators, actual_failed_validators,
+                             passed, match, duration_sec, error_message,
+                             metrics_json, artifacts_uri)
 VALUES ('${BENCH_ID}', '${CASE_ID}', 's3://robot-lake/tmp/${BENCH_ID}/',
-        'noop', 'pass', 'pass',
-        '[]'::jsonb, '[]'::jsonb, TRUE,
+        'noop', 'noop',
+        'pass', 'pass',
+        '[]'::jsonb, '[]'::jsonb,
+        TRUE, TRUE, 0.05, NULL,
         jsonb_build_object('smoke', true),
         's3://robot-dh-artifacts/tmp/${BENCH_ID}/${CASE_ID}/');
 

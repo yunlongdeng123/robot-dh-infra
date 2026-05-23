@@ -9,6 +9,7 @@ v1.5 不变更服务进程，不安装新组件，只新增运维脚本与 Postg
 - 存储风险检查与 `/dev/vdb` 迁移计划（脚本 25 / 26）
 - scale30 数据审计与 MinIO 生命周期建议（脚本 27 / 28）
 - PostgreSQL 新增 6 张表，记录 ETL 性能 / shard 计划 / benchmark / Argo workflow / 通用 runtime event（migration 002）
+- 早期 v1.5 环境的 `etl_shards` 与 `benchmark_*` schema 对齐（migration 003 / 004，脚本 33 / 34）
 - Argo Workflows 远程访问 Secret / ServiceAccount / RBAC / env 模板
 
 > Argo Workflows 控制面（argo-server、workflow-controller）由 WSL/kind 项目部署，本仓库**不**安装 Argo。
@@ -65,6 +66,8 @@ cd /opt/robot-dh-infra
 ```bash
 cd /opt/robot-dh-infra
 ./scripts/29_pg_apply_v1_5_schema.sh
+./scripts/33_pg_apply_etl_shards_align.sh
+./scripts/34_pg_apply_benchmark_align.sh
 ./scripts/30_pg_v1_5_smoke_test.sh
 ```
 
@@ -74,6 +77,12 @@ cd /opt/robot-dh-infra
 - 通过 `PGOPTIONS=-c robot_dh.app_user=$ROBOT_DH_APP_USER` 把应用账号注入 migration
 - migration 末尾的 `DO` 块会自动给应用账号 `GRANT SELECT/INSERT/UPDATE/DELETE` + 序列权限
 - 全部 `CREATE IF NOT EXISTS`，幂等
+
+早期 v1.5 对齐脚本：
+
+- `33_pg_apply_etl_shards_align.sh`：执行 `postgres/migrations/003_v1_5_etl_shards_align.sql`，把 `etl_shards.shard_id` 对齐为 text，并补齐 `shard_index / duration_sec / succeeded / failed / skipped / summary_uri / error_message`
+- `34_pg_apply_benchmark_align.sh`：执行 `postgres/migrations/004_v1_5_benchmark_align.sql`，补齐 `benchmark_cases` 的 `mutation / match / duration_sec / error_message` 与 `benchmark_runs` 的 `suite_path / total_cases / passed / failed / mismatched / report_uri`
+- 两个脚本都使用管理员账号执行 DDL，并通过 `PGOPTIONS` 给应用账号补 GRANT；全新环境执行也应保持 no-op / 幂等
 
 `30_pg_v1_5_smoke_test.sh` 行为：
 
@@ -86,9 +95,9 @@ cd /opt/robot-dh-infra
 | 表 | 主要用途 |
 |----|---------|
 | `etl_perf_runs` | 单 ETL phase 的性能 / 用时 / 内存 / 状态 |
-| `etl_shards` | scale ETL 的分片计划与状态（同 plan_id + shard_id 唯一） |
-| `benchmark_runs` | benchmark suite 单次执行的总览 |
-| `benchmark_cases` | benchmark 单 case 的预期 / 实际 / pass-fail |
+| `etl_shards` | scale ETL 的分片记录（同 plan_id + shard_id 唯一），当前主项目写入 text `shard_id` 与 `shard_index` 等聚合字段 |
+| `benchmark_runs` | benchmark suite 单次执行的总览，含 case 级聚合计数与报告 URI |
+| `benchmark_cases` | benchmark 单 case 的预期 / 实际 / match / 兼容 passed 字段 |
 | `argo_workflow_runs` | Argo workflow 元数据 + 状态 + 完整 JSON 快照 |
 | `runtime_events` | 通用事件总线（CLI / ETL / Argo / FastAPI），按 `event_id` 唯一 |
 
@@ -135,6 +144,8 @@ cd /opt/robot-dh-infra
 ./scripts/27_audit_scale30_assets.sh
 ./scripts/28_minio_lifecycle_plan.sh
 ./scripts/29_pg_apply_v1_5_schema.sh
+./scripts/33_pg_apply_etl_shards_align.sh
+./scripts/34_pg_apply_benchmark_align.sh
 ./scripts/30_pg_v1_5_smoke_test.sh
 ./scripts/31_argowf_remote_env_export.sh
 ```
@@ -143,4 +154,5 @@ cd /opt/robot-dh-infra
 
 - `27_audit_scale30_assets.sh` 输出的 JSON / MD 中 `missing_local / missing_minio / wrong_size` 全部为 0
 - `25_storage_pressure_report.sh` 输出 `warnings` 中没有 `WARNING:` 前缀的条目
+- `33_pg_apply_etl_shards_align.sh` 与 `34_pg_apply_benchmark_align.sh` 可重复执行且不破坏既有数据
 - v1.4 / v1.3 已有表与 bucket 未变更

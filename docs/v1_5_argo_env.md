@@ -31,6 +31,7 @@
 | `ROBOT_DH_DB_URI` | PostgreSQL 应用账号连接串 | `postgresql+psycopg://robot_dh_app:***@HOST:5432/robot_dh` |
 | `ROBOT_DH_ARTIFACT_STORE` | `s3` 固定值 | `s3` |
 | `ROBOT_DH_S3_ENDPOINT_URL` | MinIO HTTP endpoint | `http://HOST:9000` |
+| `ROBOT_DH_S3_REGION` | MinIO / S3 client region | `us-east-1` |
 | `ROBOT_DH_S3_ACCESS_KEY` | MinIO 应用 access key | `robotdhapp` |
 | `ROBOT_DH_S3_SECRET_KEY` | MinIO 应用 secret | `***` |
 | `ROBOT_DH_S3_DATA_BUCKET` | raw 数据 bucket | `robot-datasets` |

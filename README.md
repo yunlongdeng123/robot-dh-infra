@@ -39,6 +39,8 @@
 
 ## 2. 当前部署结论
 
+当前代码版本：`v1.5`。本版本在 v1.4 数据湖基础上补齐 scale / benchmark / Argo 远程接入所需的运维脚本、PostgreSQL 元数据表，以及早期 v1.5 schema 的幂等对齐迁移。
+
 当前服务器的已知结论如下：
 
 - 当前没有独立挂载的数据盘
@@ -130,11 +132,26 @@ WARNING: No dedicated data disk detected; using root filesystem for /data/robot-
 - `scripts/22_pg_lake_smoke_test.sh`
 - `scripts/23_minio_lake_smoke_test.sh`
 - `scripts/24_export_lake_client_env.sh`
+- `scripts/25_storage_pressure_report.sh`
+- `scripts/26_plan_vdb_migration.sh`
+- `scripts/27_audit_scale30_assets.sh`
+- `scripts/28_minio_lifecycle_plan.sh`
+- `scripts/29_pg_apply_v1_5_schema.sh`
+- `scripts/30_pg_v1_5_smoke_test.sh`
+- `scripts/31_argowf_remote_env_export.sh`
+- `scripts/32_pull_scale_30gb_hf.sh`
+- `scripts/33_pg_apply_etl_shards_align.sh`
+- `scripts/34_pg_apply_benchmark_align.sh`
 
-v1.4 数据湖文档：
+文档索引：
 
 - `docs/lake_layout.md`
 - `docs/v1_4_infra_runbook.md`
+- `docs/v1_5_scale_runbook.md`
+- `docs/v1_5_storage_plan.md`
+- `docs/v1_5_argo_env.md`
+- `docs/v1_5_etl_shards_align_handoff.md`
+- `docs/v1_5_benchmark_align_handoff.md`
 
 数据目录：
 
@@ -860,12 +877,13 @@ TOTAL: files=210 bytes_present=26064947767 GiB=24.275 ok=True
 
 ### 10.6.4 PostgreSQL 元数据
 
-应用账号 `robot_dh_app` 持有的业务表分两批：
+应用账号 `robot_dh_app` 持有的业务表按版本分为：
 
 - v1.3：dataset registry、run history、gate result、metrics 等
 - v1.4：`lake_assets`、`etl_jobs`、`lineage_edges`、`dataset_versions`、`quality_snapshots`（由 `postgres/migrations/001_lake_metadata.sql` 创建）
+- v1.5：`etl_perf_runs`、`etl_shards`、`benchmark_runs`、`benchmark_cases`、`argo_workflow_runs`、`runtime_events`（由 `postgres/migrations/002_v1_5_scale_benchmark.sql` 创建；早期 v1.5 环境再用 003 / 004 对齐迁移补列）
 
-当前 `postgres/data` 体积 < 200 KiB，备份目录 `postgres/backups/` 暂为空。可通过 `./scripts/22_pg_lake_smoke_test.sh` 验证 v1.4 元数据表是否就绪。
+当前元数据表规模仍很小，实际体积以 `du -sh /data/robot-dh/postgres/data` 为准；备份目录 `postgres/backups/` 默认由备份脚本按需生成。可通过 `./scripts/22_pg_lake_smoke_test.sh` 验证 v1.4 元数据表，通过 `./scripts/30_pg_v1_5_smoke_test.sh` 验证 v1.5 元数据表与权限。
 
 ### 10.6.5 资产发现命令
 
@@ -938,11 +956,38 @@ cd /opt/robot-dh-infra
 | 表 | 主要用途 |
 |----|---------|
 | `etl_perf_runs` | 单 ETL phase 的 input/output bytes、duration、peak memory 等性能数据 |
-| `etl_shards` | scale ETL 的分片计划（`UNIQUE(plan_id, shard_id)`） |
-| `benchmark_runs` | benchmark suite 单次执行的总览（`benchmark_id` 唯一） |
-| `benchmark_cases` | benchmark 单 case 的 expected / actual / passed |
+| `etl_shards` | scale ETL 的分片记录（`UNIQUE(plan_id, shard_id)`），与主项目 `robot-data-harness` 的 SQLAlchemy 模型对齐 |
+| `benchmark_runs` | benchmark suite 单次执行的总览（`benchmark_id` 唯一），同步含 case 级聚合计数 |
+| `benchmark_cases` | benchmark 单 case 的 expected / actual / match / passed |
 | `argo_workflow_runs` | Argo Workflow 元数据 + 状态 + 完整 JSON 快照 |
 | `runtime_events` | 通用事件总线（CLI / ETL / Argo / FastAPI），按 `event_id` 唯一 |
+
+`etl_shards` 字段约定（与主项目模型一致）：
+
+- `shard_id`：`text NOT NULL`，复合主键字符串 `'plan-<ts>-<hash>::shard-<idx>'`
+- `shard_index`：0-based 分片序号，便于按序汇总 / 排错
+- `duration_sec / succeeded / failed / skipped`：单分片执行统计
+- `summary_uri`：分片摘要 JSON 在 `robot-lake/tmp/...` 的位置
+- `error_message`：FAIL 时的错误摘要
+- `shard_uri / assigned_worker`：v1.5 早期遗留字段，主项目当前不写不读，保留兼容，不要用于新逻辑
+
+`benchmark_runs` 字段约定（与主项目模型一致）：
+
+- `suite_path`：suite 定义 YAML 的 URI（通常落在 `robot-lake/tmp/<bench_id>/...`）
+- `total_cases / passed / failed / mismatched`：case 级聚合计数
+- `report_uri`：可视化报告（HTML）落在 `robot-dh-artifacts/...` 的 URI
+- 旧字段 `status / duration_sec / metrics_json` 保留不变
+
+`benchmark_cases` 字段约定（与主项目模型一致）：
+
+- `match`：`boolean nullable`，新口径的"是否匹配预期"
+  - `TRUE` = `actual_status` 与 `expected_status` 匹配，且 `expected_failed_validators` 为空或是 `actual_failed_validators` 的子集
+  - `FALSE` = 不匹配或 case 运行异常
+  - `NULL` = 未知 / 历史数据未回填
+- `mutation`：主项目新口径的 mutation 名称
+- `duration_sec`：单 case 执行耗时
+- `error_message`：异常摘要
+- 兼容字段：`passed`（boolean）/ `mutation_type`（text），主项目改写 `match` / `mutation`；exporter 按 `COALESCE(match, passed)` / `COALESCE(mutation, mutation_type)` 聚合，避免补列后旧数据变 unknown
 
 应用与验收：
 
@@ -953,6 +998,42 @@ cd /opt/robot-dh-infra
 ```
 
 `29_pg_apply_v1_5_schema.sh` 通过 `PGOPTIONS='-c robot_dh.app_user=$ROBOT_DH_APP_USER'` 把应用账号注入 migration，migration 末尾的 `DO` 块会自动给应用账号 `GRANT SELECT/INSERT/UPDATE/DELETE` + 序列权限，避免重复维护 GRANT 脚本。
+
+#### 从早期 v1.5 升级（etl_shards 对齐）
+
+如果环境是在 002 早期版本（`shard_id int NOT NULL`、缺少 `shard_index / duration_sec / succeeded / failed / skipped / summary_uri / error_message` 7 列）下建表的，需要再跑一次 003 对齐迁移：
+
+```bash
+cd /opt/robot-dh-infra
+./scripts/33_pg_apply_etl_shards_align.sh
+```
+
+行为说明：
+
+- 用管理员账号执行 `postgres/migrations/003_v1_5_etl_shards_align.sql`，绕开 `robot_dh_app` 无 DDL 权限的限制
+- `shard_id` 从 `int` 转 `text`（旧表 soft-mode 下未成功写入，转换零数据风险；已是 text 则跳过）
+- 按需 `ADD COLUMN IF NOT EXISTS` 补齐 7 列
+- 末尾的 `DO` 块通过 `PGOPTIONS` 注入的 `robot_dh.app_user` GUC 自动给应用账号补 GRANT
+- 全程幂等，可重复执行；全新环境无需跑此脚本，直接由 002 创建对齐后的表
+
+#### 从早期 v1.5 升级（benchmark_cases / benchmark_runs 对齐）
+
+如果环境是在 002 早期版本（`benchmark_cases` 缺 `mutation / match / duration_sec / error_message`；`benchmark_runs` 缺 `suite_path / total_cases / passed / failed / mismatched / report_uri`）下建表的，需要再跑一次 004 对齐迁移：
+
+```bash
+cd /opt/robot-dh-infra
+./scripts/34_pg_apply_benchmark_align.sh
+```
+
+行为说明：
+
+- 用管理员账号执行 `postgres/migrations/004_v1_5_benchmark_align.sql`
+- 给 `benchmark_cases` 补 `mutation / match / duration_sec / error_message` 4 列
+- 给 `benchmark_runs` 补 `suite_path / total_cases / passed / failed / mismatched / report_uri` 6 列
+- 历史数据回填：`match <- passed`、`mutation <- mutation_type`（仅在新列 `IS NULL` 时回填，幂等）
+- 旧列 `passed` / `mutation_type` **不删除**，留作 exporter `COALESCE(match, passed)` / `COALESCE(mutation, mutation_type)` 聚合，避免旧 benchmark 历史变 unknown
+- 末尾的 `DO` 块通过 `PGOPTIONS` 注入的 `robot_dh.app_user` GUC 自动给应用账号补 GRANT
+- 全程幂等，可重复执行；全新环境无需跑此脚本，直接由 002 创建对齐后的表
 
 ### 10.7.4 Argo 远程连接注意事项
 
@@ -1016,6 +1097,8 @@ cd /opt/robot-dh-infra
 ./scripts/27_audit_scale30_assets.sh
 ./scripts/28_minio_lifecycle_plan.sh
 ./scripts/29_pg_apply_v1_5_schema.sh
+./scripts/33_pg_apply_etl_shards_align.sh    # 老环境对齐 etl_shards；新环境跑一次也 no-op
+./scripts/34_pg_apply_benchmark_align.sh     # 老环境对齐 benchmark_cases / benchmark_runs；新环境跑一次也 no-op
 ./scripts/30_pg_v1_5_smoke_test.sh
 ./scripts/31_argowf_remote_env_export.sh
 ```
@@ -1026,6 +1109,8 @@ cd /opt/robot-dh-infra
 - `27_audit_scale30_assets.sh` 报告中 `missing_local / missing_minio / wrong_size` 均为 0
 - `25_storage_pressure_report.sh` 没有 `WARNING:` 级别条目
 - `30_pg_v1_5_smoke_test.sh` 在 `robot_dh_app` 账号下 6 张表均可插入 + 删除
+- `33_pg_apply_etl_shards_align.sh` 在已对齐环境上重复执行时只输出 `跳过 / no-op` 信息
+- `34_pg_apply_benchmark_align.sh` 在已对齐环境上重复执行时只命中 `ADD COLUMN IF NOT EXISTS` 的 no-op 分支
 - v1.3 / v1.4 已有表 / bucket / 数据无任何变更
 - `client/robot-dh-v1-5.env` 仅在显式传 `--show-secrets` 时生成，且权限为 `0600`
 
@@ -1162,6 +1247,8 @@ cd /opt/robot-dh-infra
 ./scripts/27_audit_scale30_assets.sh
 ./scripts/28_minio_lifecycle_plan.sh
 ./scripts/29_pg_apply_v1_5_schema.sh
+./scripts/33_pg_apply_etl_shards_align.sh
+./scripts/34_pg_apply_benchmark_align.sh
 ./scripts/30_pg_v1_5_smoke_test.sh
 ./scripts/31_argowf_remote_env_export.sh
 ```
