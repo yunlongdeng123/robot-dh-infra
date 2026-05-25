@@ -1,0 +1,105 @@
+{"message": "etl_run START: job_id=etl-run-bridgedata_v2_scale30-v1-d8ac7e58 dataset_uri=s3://robot-datasets/raw/bridgedata_v2_scale30/v1 -> bridgedata_v2_scale30/v1 phase=normalize resume=True force=False", "timestamp": "2026-05-24T14:27:32.871177+00:00", "level": "INFO"}
+{"message": "  [normalize] s3://robot-datasets/raw/bridgedata_v2_scale30/v1 -> s3://robot-lake/ods/bridgedata_v2_scale30/v1", "timestamp": "2026-05-24T14:27:33.429265+00:00", "level": "INFO"}
+{"message": "normalize: job_id=etl-run-bridgedata_v2_scale30-v1-d8ac7e58::normalize dataset_uri=s3://robot-datasets/raw/bridgedata_v2_scale30/v1 output_uri=s3://robot-lake/ods/bridgedata_v2_scale30/v1 resume=True force=False", "timestamp": "2026-05-24T14:27:33.429411+00:00", "level": "INFO"}
+{"message": "normalize SKIP: s3://robot-lake/ods/bridgedata_v2_scale30/v1 already has manifest; pass force=True to rerun", "timestamp": "2026-05-24T14:27:33.753577+00:00", "level": "INFO"}
+{"message": "etl_run END:   job_id=etl-run-bridgedata_v2_scale30-v1-d8ac7e58 status=OK duration=0.90s", "timestamp": "2026-05-24T14:27:33.827347+00:00", "level": "INFO"}
+{"message": "warehouse record_etl_perf_run schema mismatch: (psycopg.errors.UndefinedColumn) column \"started_at\" of relation \"etl_perf_runs\" does not exist\nLINE 1: ...peak_memory_mb, worker_id, status, error_message, started_at...\n                                                             ^\n[SQL: INSERT INTO etl_perf_runs (job_id, run_id, dataset_id, version, phase, input_uri, output_uri, input_bytes, output_bytes, input_rows, output_rows, duration_sec, download_duration_sec, upload_duration_sec, compute_duration_sec, peak_memory_mb, worker_id, status, error_message, started_at, finished_at, metrics_json, created_at) VALUES (%(job_id)s::VARCHAR, %(run_id)s::VARCHAR, %(dataset_id)s::VARCHAR, %(version)s::VARCHAR, %(phase)s::VARCHAR, %(input_uri)s::VARCHAR, %(output_uri)s::VARCHAR, %(input_bytes)s::BIGINT, %(output_bytes)s::BIGINT, %(input_rows)s::BIGINT, %(output_rows)s::BIGINT, %(duration_sec)s, %(download_duration_sec)s, %(upload_duration_sec)s, %(compute_duration_sec)s, %(peak_memory_mb)s, %(worker_id)s::VARCHAR, %(status)s::VARCHAR, %(error_message)s::VARCHAR, %(started_at)s::TIMESTAMP WITH TIME ZONE, %(finished_at)s::TIMESTAMP WITH TIME ZONE, %(metrics_json)s::JSONB, %(created_at)s::TIMESTAMP WITH TIME ZONE) RETURNING etl_perf_runs.id]\n[parameters: {'job_id': 'etl-run-bridgedata_v2_scale30-v1-d8ac7e58::normalize', 'run_id': 'etl-run-bridgedata_v2_scale30-v1-d8ac7e58', 'dataset_id': 'bridgedata_v2_scale30', 'version': 'v1', 'phase': 'normalize', 'input_uri': 's3://robot-datasets/raw/bridgedata_v2_scale30/v1', 'output_uri': 's3://robot-lake/ods/bridgedata_v2_scale30/v1', 'input_bytes': 238440784, 'output_bytes': 39769, 'input_rows': 314, 'output_rows': 318, 'duration_sec': 0.0, 'download_duration_sec': 0.0, 'upload_duration_sec': 0.0, 'compute_duration_sec': 0.0, 'peak_memory_mb': 0.0, 'worker_id': '', 'status': 'OK', 'error_message': None, 'started_at': None, 'finished_at': None, 'metrics_json': Jsonb({}), 'created_at': datetime.datetime(2026, 5, 24, 14, 27, 34, 30867, tzinfo=datetime.timezone.utc)}]\n(Background on this error at: https://sqlalche.me/e/20/f405). Apply the matching schema migration in the infra project first.", "timestamp": "2026-05-24T14:27:34.092913+00:00", "level": "ERROR"}
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+  File "/usr/local/lib/python3.11/site-packages/psycopg/cursor.py", line 117, in execute
+    raise ex.with_traceback(None)
+psycopg.errors.UndefinedColumn: column "started_at" of relation "etl_perf_runs" does not exist
+LINE 1: ...peak_memory_mb, worker_id, status, error_message, started_at...
+                                                             ^
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.11/site-packages/robot_dh/warehouse/service.py", line 519, in record_etl_perf_run
+    session.commit()
+  File "/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 2030, in commit
+    trans.commit(_to_root=True)
+  File "<string>", line 2, in commit
+  File "/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/state_changes.py", line 137, in _go
+    ret_value = fn(self, *arg, **kw)
+                ^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 1311, in commit
+    self._prepare_impl()
+  File "<string>", line 2, in _prepare_impl
+  File "/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/state_changes.py", line 137, in _go
+    ret_value = fn(self, *arg, **kw)
+                ^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 1286, in _prepare_impl
+    self.session.flush()
+  File "/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 4331, in flush
+    self._flush(objects)
+  File "/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 4466, in _flush
+    with util.safe_reraise():
+  File "/usr/local/lib/python3.11/site-packages/sqlalchemy/util/langhelpers.py", line 121, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 4427, in _flush
+    flush_context.execute()
+  File "/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/unitofwork.py", line 466, in execute
+    rec.execute(self)
+  File "/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/unitofwork.py", line 642, in execute
+    util.preloaded.orm_persistence.save_obj(
+  File "/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/persistence.py", line 93, in save_obj
+    _emit_insert_statements(
+  File "/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/persistence.py", line 1233, in _emit_insert_statements
+    result = connection.execute(
+             ^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1419, in execute
+    return meth(
+           ^^^^^
+  File "/usr/local/lib/python3.11/site-packages/sqlalchemy/sql/elements.py", line 527, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 2363, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+  File "/usr/local/lib/python3.11/site-packages/psycopg/cursor.py", line 117, in execute
+    raise ex.with_traceback(None)
+sqlalchemy.exc.ProgrammingError: (psycopg.errors.UndefinedColumn) column "started_at" of relation "etl_perf_runs" does not exist
+LINE 1: ...peak_memory_mb, worker_id, status, error_message, started_at...
+                                                             ^
+[SQL: INSERT INTO etl_perf_runs (job_id, run_id, dataset_id, version, phase, input_uri, output_uri, input_bytes, output_bytes, input_rows, output_rows, duration_sec, download_duration_sec, upload_duration_sec, compute_duration_sec, peak_memory_mb, worker_id, status, error_message, started_at, finished_at, metrics_json, created_at) VALUES (%(job_id)s::VARCHAR, %(run_id)s::VARCHAR, %(dataset_id)s::VARCHAR, %(version)s::VARCHAR, %(phase)s::VARCHAR, %(input_uri)s::VARCHAR, %(output_uri)s::VARCHAR, %(input_bytes)s::BIGINT, %(output_bytes)s::BIGINT, %(input_rows)s::BIGINT, %(output_rows)s::BIGINT, %(duration_sec)s, %(download_duration_sec)s, %(upload_duration_sec)s, %(compute_duration_sec)s, %(peak_memory_mb)s, %(worker_id)s::VARCHAR, %(status)s::VARCHAR, %(error_message)s::VARCHAR, %(started_at)s::TIMESTAMP WITH TIME ZONE, %(finished_at)s::TIMESTAMP WITH TIME ZONE, %(metrics_json)s::JSONB, %(created_at)s::TIMESTAMP WITH TIME ZONE) RETURNING etl_perf_runs.id]
+[parameters: {'job_id': 'etl-run-bridgedata_v2_scale30-v1-d8ac7e58::normalize', 'run_id': 'etl-run-bridgedata_v2_scale30-v1-d8ac7e58', 'dataset_id': 'bridgedata_v2_scale30', 'version': 'v1', 'phase': 'normalize', 'input_uri': 's3://robot-datasets/raw/bridgedata_v2_scale30/v1', 'output_uri': 's3://robot-lake/ods/bridgedata_v2_scale30/v1', 'input_bytes': 238440784, 'output_bytes': 39769, 'input_rows': 314, 'output_rows': 318, 'duration_sec': 0.0, 'download_duration_sec': 0.0, 'upload_duration_sec': 0.0, 'compute_duration_sec': 0.0, 'peak_memory_mb': 0.0, 'worker_id': '', 'status': 'OK', 'error_message': None, 'started_at': None, 'finished_at': None, 'metrics_json': Jsonb({}), 'created_at': datetime.datetime(2026, 5, 24, 14, 27, 34, 30867, tzinfo=datetime.timezone.utc)}]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/usr/local/bin/robot-dh", line 8, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/robot_dh/cli.py", line 628, in main
+    emit_perf_records(perf_records, work_dir=perf_dir)
+  File "/usr/local/lib/python3.11/site-packages/robot_dh/perf/writer.py", line 120, in emit_perf_records
+    write_perf_record_to_db(rec, warehouse=wh)
+  File "/usr/local/lib/python3.11/site-packages/robot_dh/perf/writer.py", line 34, in write_perf_record_to_db
+    return wh.record_etl_perf_run(record)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/robot_dh/warehouse/service.py", line 522, in record_etl_perf_run
+    self._handle_write_error("record_etl_perf_run", err)
+  File "/usr/local/lib/python3.11/site-packages/robot_dh/warehouse/service.py", line 134, in _handle_write_error
+    raise V15SchemaMissingError(msg) from err
+robot_dh.warehouse.service.V15SchemaMissingError: warehouse record_etl_perf_run schema mismatch: (psycopg.errors.UndefinedColumn) column "started_at" of relation "etl_perf_runs" does not exist
+LINE 1: ...peak_memory_mb, worker_id, status, error_message, started_at...
+                                                             ^
+[SQL: INSERT INTO etl_perf_runs (job_id, run_id, dataset_id, version, phase, input_uri, output_uri, input_bytes, output_bytes, input_rows, output_rows, duration_sec, download_duration_sec, upload_duration_sec, compute_duration_sec, peak_memory_mb, worker_id, status, error_message, started_at, finished_at, metrics_json, created_at) VALUES (%(job_id)s::VARCHAR, %(run_id)s::VARCHAR, %(dataset_id)s::VARCHAR, %(version)s::VARCHAR, %(phase)s::VARCHAR, %(input_uri)s::VARCHAR, %(output_uri)s::VARCHAR, %(input_bytes)s::BIGINT, %(output_bytes)s::BIGINT, %(input_rows)s::BIGINT, %(output_rows)s::BIGINT, %(duration_sec)s, %(download_duration_sec)s, %(upload_duration_sec)s, %(compute_duration_sec)s, %(peak_memory_mb)s, %(worker_id)s::VARCHAR, %(status)s::VARCHAR, %(error_message)s::VARCHAR, %(started_at)s::TIMESTAMP WITH TIME ZONE, %(finished_at)s::TIMESTAMP WITH TIME ZONE, %(metrics_json)s::JSONB, %(created_at)s::TIMESTAMP WITH TIME ZONE) RETURNING etl_perf_runs.id]
+[parameters: {'job_id': 'etl-run-bridgedata_v2_scale30-v1-d8ac7e58::normalize', 'run_id': 'etl-run-bridgedata_v2_scale30-v1-d8ac7e58', 'dataset_id': 'bridgedata_v2_scale30', 'version': 'v1', 'phase': 'normalize', 'input_uri': 's3://robot-datasets/raw/bridgedata_v2_scale30/v1', 'output_uri': 's3://robot-lake/ods/bridgedata_v2_scale30/v1', 'input_bytes': 238440784, 'output_bytes': 39769, 'input_rows': 314, 'output_rows': 318, 'duration_sec': 0.0, 'download_duration_sec': 0.0, 'upload_duration_sec': 0.0, 'compute_duration_sec': 0.0, 'peak_memory_mb': 0.0, 'worker_id': '', 'status': 'OK', 'error_message': None, 'started_at': None, 'finished_at': None, 'metrics_json': Jsonb({}), 'created_at': datetime.datetime(2026, 5, 24, 14, 27, 34, 30867, tzinfo=datetime.timezone.utc)}]
+(Background on this error at: https://sqlalche.me/e/20/f405). Apply the matching schema migration in the infra project first.

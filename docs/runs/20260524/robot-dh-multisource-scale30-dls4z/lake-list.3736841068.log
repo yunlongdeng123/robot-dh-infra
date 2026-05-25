@@ -1,0 +1,11 @@
+{
+  "lake_uri": "s3://robot-lake/",
+  "layers": [
+    {
+      "layer": "raw",
+      "uri": "s3://robot-lake/raw",
+      "object_count": 1,
+      "slices": []
+    }
+  ]
+}

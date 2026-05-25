@@ -1,0 +1,222 @@
+{
+  "info": {
+    "features": {
+      "image": {
+        "_type": "Image"
+      },
+      "observation": {
+        "image": {
+          "_type": "Image"
+        },
+        "task": {
+          "dtype": "string",
+          "_type": "Value"
+        }
+      },
+      "action": {
+        "pose": {
+          "x": {
+            "dtype": "float64",
+            "_type": "Value"
+          },
+          "y": {
+            "dtype": "float64",
+            "_type": "Value"
+          },
+          "z": {
+            "dtype": "float64",
+            "_type": "Value"
+          },
+          "roll": {
+            "dtype": "float64",
+            "_type": "Value"
+          },
+          "pitch": {
+            "dtype": "float64",
+            "_type": "Value"
+          },
+          "yaw": {
+            "dtype": "float64",
+            "_type": "Value"
+          }
+        },
+        "grasp": {
+          "dtype": "float64",
+          "_type": "Value"
+        }
+      },
+      "supervision": {
+        "dtype": "float64",
+        "_type": "Value"
+      },
+      "episode_idx": {
+        "dtype": "int64",
+        "_type": "Value"
+      },
+      "step_idx": {
+        "dtype": "int64",
+        "_type": "Value"
+      },
+      "absolute_action": {
+        "pose": {
+          "x": {
+            "dtype": "float64",
+            "_type": "Value"
+          },
+          "y": {
+            "dtype": "float64",
+            "_type": "Value"
+          },
+          "z": {
+            "dtype": "float64",
+            "_type": "Value"
+          },
+          "roll": {
+            "dtype": "float64",
+            "_type": "Value"
+          },
+          "pitch": {
+            "dtype": "float64",
+            "_type": "Value"
+          },
+          "yaw": {
+            "dtype": "float64",
+            "_type": "Value"
+          }
+        },
+        "grasp": {
+          "dtype": "float64",
+          "_type": "Value"
+        }
+      },
+      "state": {
+        "end_effector_pose": {
+          "x": {
+            "dtype": "float64",
+            "_type": "Value"
+          },
+          "y": {
+            "dtype": "float64",
+            "_type": "Value"
+          },
+          "z": {
+            "dtype": "float64",
+            "_type": "Value"
+          },
+          "roll": {
+            "dtype": "float64",
+            "_type": "Value"
+          },
+          "pitch": {
+            "dtype": "float64",
+            "_type": "Value"
+          },
+          "yaw": {
+            "dtype": "float64",
+            "_type": "Value"
+          }
+        },
+        "is_first": {
+          "dtype": "int64",
+          "_type": "Value"
+        },
+        "is_last": {
+          "dtype": "int64",
+          "_type": "Value"
+        },
+        "is_terminal": {
+          "dtype": "int64",
+          "_type": "Value"
+        },
+        "language_embedding": [
+          {
+            "dtype": "float64",
+            "_type": "Value"
+          }
+        ]
+      },
+      "timestamp": {
+        "dtype": "float64",
+        "_type": "Value"
+      },
+      "metadata": {
+        "num_depth_cams": {
+          "dtype": "int64",
+          "_type": "Value"
+        },
+        "num_episodes": {
+          "dtype": "string",
+          "_type": "Value"
+        },
+        "num_rgb_cams": {
+          "dtype": "int64",
+          "_type": "Value"
+        },
+        "num_wrist_cams": {
+          "dtype": "int64",
+          "_type": "Value"
+        },
+        "action_space": {
+          "dtype": "string",
+          "_type": "Value"
+        },
+        "control_frequency": {
+          "dtype": "string",
+          "_type": "Value"
+        },
+        "data_collect_method": {
+          "dtype": "string",
+          "_type": "Value"
+        },
+        "dataset": {
+          "dtype": "string",
+          "_type": "Value"
+        },
+        "description": {
+          "dtype": "string",
+          "_type": "Value"
+        },
+        "file_size_gb": {
+          "dtype": "float64",
+          "_type": "Value"
+        },
+        "gripper": {
+          "dtype": "string",
+          "_type": "Value"
+        },
+        "has_camera_calibration": {
+          "dtype": "string",
+          "_type": "Value"
+        },
+        "has_proprioception": {
+          "dtype": "string",
+          "_type": "Value"
+        },
+        "has_suboptimal": {
+          "dtype": "string",
+          "_type": "Value"
+        },
+        "language_annotations": {
+          "dtype": "string",
+          "_type": "Value"
+        },
+        "registered_dataset_name": {
+          "dtype": "string",
+          "_type": "Value"
+        },
+        "robot": {
+          "dtype": "string",
+          "_type": "Value"
+        },
+        "robot_morphology": {
+          "dtype": "string",
+          "_type": "Value"
+        },
+        "scene_type": {
+          "dtype": "string",
+          "_type": "Value"
+        }
+      }
+    }
+  }
+}

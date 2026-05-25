@@ -45,6 +45,7 @@ cd /opt/robot-dh-infra
 | `robot-lake` | `tmp/` | 7 天过期 | `./scripts/28_minio_lifecycle_plan.sh --apply` |
 | `robot-dh-artifacts` | `tmp/` | 7 天过期 | `./scripts/28_minio_lifecycle_plan.sh --apply` |
 | `robot-dh-artifacts` | `runs/` | 建议 30 天过期 | 人工 `mc ilm rule add` |
+| `robot-dh-artifacts` | `argo-logs/` | 建议 30 天过期 | 人工 `mc ilm rule add`，**不**进入 `28_minio_lifecycle_plan.sh --apply` 白名单（与 `tmp/` 7 天策略明显不同） |
 | `robot-lake` | `ods/ dwd/ ads/` | 不自动过期 | 由 dataset_versions / lake_assets 控制 |
 | `robot-lake` | `lineage/` | 建议 180 天后归档 | 人工策划 |
 | `robot-datasets` | 全部 | 不自动过期 | 人工策划 |
@@ -53,8 +54,19 @@ cd /opt/robot-dh-infra
 `--apply` 行为：
 
 - 仅作用于 `robot-lake/tmp/` 和 `robot-dh-artifacts/tmp/` 两条 prefix
+- **不会**触碰 `argo-logs/` / `runs/` / `ods/ dwd/ ads/` / `lineage/`，这些 prefix 的过期策略由人工 `mc ilm rule add` 落
 - 必须交互输入 `APPLY_LIFECYCLE` 才会真正写
 - 幂等：已经存在的同等规则会跳过
+
+`argo-logs/` 由 WSL/kind 项目部署的 `workflow-controller` 写入（v1.6 起，见 [`docs/v1_6_argo_log_archive_request.md`](v1_6_argo_log_archive_request.md) §6），人工 ILM 命令示例：
+
+```bash
+mc ilm rule add \
+  --expire-days 30 \
+  --prefix argo-logs/ \
+  rdh/robot-dh-artifacts
+mc ilm rule list rdh/robot-dh-artifacts
+```
 
 注意 versioning：
 

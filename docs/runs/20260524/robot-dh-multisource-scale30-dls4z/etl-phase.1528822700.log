@@ -1,0 +1,35 @@
+{"message": "etl_run START: job_id=etl-run-bridgedata_v2_scale30-v1-3fa1ac19 dataset_uri=s3://robot-datasets/raw/bridgedata_v2_scale30/v1 -> bridgedata_v2_scale30/v1 phase=normalize resume=True force=False", "timestamp": "2026-05-24T10:59:06.676019+00:00", "level": "INFO"}
+{"message": "  [normalize] s3://robot-datasets/raw/bridgedata_v2_scale30/v1 -> s3://robot-lake/ods/bridgedata_v2_scale30/v1", "timestamp": "2026-05-24T10:59:06.969550+00:00", "level": "INFO"}
+{"message": "normalize: job_id=etl-run-bridgedata_v2_scale30-v1-3fa1ac19::normalize dataset_uri=s3://robot-datasets/raw/bridgedata_v2_scale30/v1 output_uri=s3://robot-lake/ods/bridgedata_v2_scale30/v1 resume=True force=False", "timestamp": "2026-05-24T10:59:06.969710+00:00", "level": "INFO"}
+{"message": "heartbeat task=etl-run-bridgedata_v2_scale30-v1-3fa1ac19::normalize phase=normalize progress=None/None msg=phase_start", "timestamp": "2026-05-24T10:59:07.158218+00:00", "level": "INFO"}
+{"message": "heartbeat task=etl-run-bridgedata_v2_scale30-v1-3fa1ac19::normalize phase=normalize.materialize_input progress=None/None msg=materialize_input.start", "timestamp": "2026-05-24T10:59:07.185476+00:00", "level": "INFO"}
+{"message": "S3 download_dir: bucket=robot-datasets prefix=raw/bridgedata_v2_scale30/v1/ files=9 total_size=227.4 MiB concurrency=8", "timestamp": "2026-05-24T10:59:07.245340+00:00", "level": "INFO"}
+{"message": "Connection pool is full, discarding connection: 82.156.129.81. Connection pool size: 10", "timestamp": "2026-05-24T11:07:10.841632+00:00", "level": "WARNING"}
+{"message": "Connection pool is full, discarding connection: 82.156.129.81. Connection pool size: 10", "timestamp": "2026-05-24T11:07:47.905169+00:00", "level": "WARNING"}
+{"message": "Connection pool is full, discarding connection: 82.156.129.81. Connection pool size: 10", "timestamp": "2026-05-24T11:08:15.432244+00:00", "level": "WARNING"}
+{"message": "Connection pool is full, discarding connection: 82.156.129.81. Connection pool size: 10", "timestamp": "2026-05-24T11:09:12.926314+00:00", "level": "WARNING"}
+{"message": "Connection pool is full, discarding connection: 82.156.129.81. Connection pool size: 10", "timestamp": "2026-05-24T11:10:59.703081+00:00", "level": "WARNING"}
+{"message": "heartbeat task=etl-run-bridgedata_v2_scale30-v1-3fa1ac19::normalize phase=normalize.materialize_input progress=None/None msg=materialize_input.done", "timestamp": "2026-05-24T11:10:59.755462+00:00", "level": "INFO"}
+{"message": "heartbeat task=etl-run-bridgedata_v2_scale30-v1-3fa1ac19::normalize phase=normalize.load_bundles progress=None/None msg=load_bundles.start", "timestamp": "2026-05-24T11:10:59.755870+00:00", "level": "INFO"}
+{"message": "hf_adapter[bridgedata_v2_scale30]: matched prefix 'bridgedata_v2', using registered adapter", "timestamp": "2026-05-24T11:10:59.757831+00:00", "level": "INFO"}
+{"message": "bridgedata_v2 adapter: action column action in /run/robot-dh/workdir/robot-dh-normalize-16hgbar3/input/data/shard_0-00000-of-00001.parquet not coercible to 7-dim", "timestamp": "2026-05-24T11:11:03.836605+00:00", "level": "WARNING"}
+{"message": "heartbeat task=etl-run-bridgedata_v2_scale30-v1-3fa1ac19::normalize phase=normalize.load_bundles progress=None/None msg=phase_failed: ValueError", "timestamp": "2026-05-24T11:11:03.867383+00:00", "level": "INFO"}
+{"message": "etl_run FAIL: bridgedata_v2 adapter could not extract any pose episode from /run/robot-dh/workdir/robot-dh-normalize-16hgbar3/input. Found 1 parquet shards. Schema may be unknown; sample columns: ['absolute_action', 'action', 'episode_idx', 'image', 'metadata', 'observation', 'state', 'step_idx', 'supervision', 'timestamp'].", "timestamp": "2026-05-24T11:11:04.199672+00:00", "level": "ERROR"}
+{"message": "etl_run END:   job_id=etl-run-bridgedata_v2_scale30-v1-3fa1ac19 status=FAIL duration=717.25s", "timestamp": "2026-05-24T11:11:04.228553+00:00", "level": "INFO"}
+{
+  "dataset_id": "bridgedata_v2_scale30",
+  "version": "v1",
+  "raw_uri": "s3://robot-datasets/raw/bridgedata_v2_scale30/v1",
+  "ods_uri": "s3://robot-lake/ods/bridgedata_v2_scale30/v1",
+  "dwd_uri": "s3://robot-lake/dwd/bridgedata_v2_scale30/v1",
+  "ads_uri": null,
+  "job_id": "etl-run-bridgedata_v2_scale30-v1-3fa1ac19",
+  "status": "FAIL",
+  "duration_sec": 717.2506806850433,
+  "error": "bridgedata_v2 adapter could not extract any pose episode from /run/robot-dh/workdir/robot-dh-normalize-16hgbar3/input. Found 1 parquet shards. Schema may be unknown; sample columns: ['absolute_action', 'action', 'episode_idx', 'image', 'metadata', 'observation', 'state', 'step_idx', 'supervision', 'timestamp'].",
+  "normalize": null,
+  "features": null,
+  "ads": null,
+  "summary_uri": null,
+  "phase": "normalize"
+}

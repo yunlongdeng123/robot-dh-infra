@@ -1,0 +1,21 @@
+{
+  "run_id": "qc-robomimic_hdf5_v1-302c5e453f",
+  "contract_id": "robomimic_hdf5_v1",
+  "status": "PASS",
+  "artifacts": {
+    "report_uri": "s3://robot-lake/qc/robomimic_scale30/v1/contract_report.json",
+    "report_html_uri": "s3://robot-lake/qc/robomimic_scale30/v1/contract_report.html",
+    "profile_uri": "s3://robot-lake/qc/robomimic_scale30/v1/asset_profile.json"
+  },
+  "metrics": {
+    "hdf5_valid_rate": 1.0,
+    "demo_count": 21000,
+    "num_hdf5_files": 26,
+    "action_present_rate": 1.0,
+    "obs_next_obs_mismatch_rate": 0.0,
+    "reward_done_length_mismatch_rate": 0.0,
+    "action_range_violation_rate": 0.0,
+    "episode_len_p50": 0,
+    "episode_len_p95": 0
+  }
+}

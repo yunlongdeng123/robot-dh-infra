@@ -15,6 +15,7 @@
 - [10.5 v1.4 数据湖基础设施](#105-v14-数据湖基础设施)
 - [10.6 当前数据资产 manifest](#106-当前数据资产-manifest)
 - [10.7 v1.5 scale / benchmark / Argo 基础设施](#107-v15-scale--benchmark--argo-基础设施)
+- [10.8 v1.6 robot platform 元数据基础设施](#108-v16-robot-platform-元数据基础设施)
 - [11. 备份与恢复](#11-备份与恢复)
 - [12. 常用运维命令](#12-常用运维命令)
 - [13. 验收与验证命令](#13-验收与验证命令)
@@ -39,7 +40,7 @@
 
 ## 2. 当前部署结论
 
-当前代码版本：`v1.5`。本版本在 v1.4 数据湖基础上补齐 scale / benchmark / Argo 远程接入所需的运维脚本、PostgreSQL 元数据表，以及早期 v1.5 schema 的幂等对齐迁移。
+当前代码版本：`v1.6`。本版本在 v1.5 基础上新增 9 张 PostgreSQL 元数据表（QC contract / workflow / asset profile / ml-ready / OpenLineage 事件 / heartbeat / partition）以及配套的运维脚本与 client 模板，目标是为多源 embodied data 处理与 ML 平台提供运行时可观测性。v1.6 不更换服务进程、不重写 v1.4 / v1.5 既有表、不自动迁移磁盘。
 
 当前服务器的已知结论如下：
 
@@ -142,6 +143,13 @@ WARNING: No dedicated data disk detected; using root filesystem for /data/robot-
 - `scripts/32_pull_scale_30gb_hf.sh`
 - `scripts/33_pg_apply_etl_shards_align.sh`
 - `scripts/34_pg_apply_benchmark_align.sh`
+- `scripts/35_pg_apply_v1_6_schema.sh`
+- `scripts/36_pg_v1_6_smoke_test.sh`
+- `scripts/37_audit_v1_6_platform_state.sh`
+- `scripts/38_workflow_metadata_report.sh`
+- `scripts/39_qc_contract_report.sh`
+- `scripts/40_storage_tmp_lifecycle_audit.sh`
+- `scripts/41_export_v1_6_client_env.sh`
 
 文档索引：
 
@@ -152,6 +160,9 @@ WARNING: No dedicated data disk detected; using root filesystem for /data/robot-
 - `docs/v1_5_argo_env.md`
 - `docs/v1_5_etl_shards_align_handoff.md`
 - `docs/v1_5_benchmark_align_handoff.md`
+- `docs/v1_6_infra_runbook.md`
+- `docs/v1_6_metadata_schema.md`
+- `docs/v1_6_storage_and_deadline_notes.md`
 
 数据目录：
 
@@ -806,7 +817,7 @@ TOTAL: files=210 bytes_present=26064947767 GiB=24.275 ok=True
 | Bucket | 体积 | 对象数 | 定位 | 主要内容 |
 |--------|------|--------|------|----------|
 | `robot-datasets` | 26 GiB | 701 | v1.3 原始数据集集中地 | `raw/{droid, bridgedata_v2, robomimic}/...`、`raw/{bridgedata_v2_scale30, droid_lerobot_scale30, robomimic_scale30}/...` + `manifests/*` |
-| `robot-dh-artifacts` | 9.9 MiB | 123 | validator / quality gate 报告产物 | `runs/{run_id}/{gate_report.json, report.html, report.json, plots/*.png}` |
+| `robot-dh-artifacts` | 9.9 MiB | 123 | validator / quality gate 报告产物 + Argo step pod 日志归档 | `runs/{run_id}/{gate_report.json, report.html, report.json, plots/*.png}`、`argo-logs/{namespace}/{workflow.name}/{pod.name}/main.log` |
 | `robot-dh-backups` | 0 B | 0 | PostgreSQL / MinIO 备份归档 | 暂无；由 `scripts/07_backup_postgres.sh` / `scripts/08_backup_minio.sh` 写入 |
 | `robot-lake` | 45 MiB | 33 | v1.4 数据湖统一 bucket | `raw/ ods/ dwd/ ads/ lineage/ tmp/` 六层 prefix |
 
@@ -850,6 +861,14 @@ TOTAL: files=210 bytes_present=26064947767 GiB=24.275 ok=True
 - `plots/{euler_angles, velocity_profile, xy_clusters, z_press_events}.png`：4 张诊断图
 
 当前已落库的 run：`api-run-v13-test`、`k8s-demo`、`local-demo-v12-test`、`public-demo-v13`、`public-demo-v13-rerun` 等共 5+ 个，全部由主项目 `robot-data-harness` 写入。
+
+v1.6 起新增 `argo-logs/` 顶层 prefix，由 Argo `workflow-controller` 在 step pod 终态时上传 stdout/stderr：
+
+- 路径：`argo-logs/{workflow.namespace}/{workflow.name}/{pod.name}/main.log`
+- 写入方：WSL/kind 项目部署的 `workflow-controller`（`workflow-controller-configmap.data.artifactRepository.archiveLogs=true`），凭据复用 `robot-dh-v1-6-secrets.ROBOT_DH_S3_*`
+- 落盘前置条件：WorkflowTemplate `podGC.strategy` 至少为 `OnWorkflowCompletion`，避免 step pod 完成即被 GC（详见 [`docs/v1_6_argo_log_archive_request.md`](docs/v1_6_argo_log_archive_request.md) §5.3 与 WSL/kind 侧回执 [`docs/v1_6_argo_log_archive_handoff.md`](docs/v1_6_argo_log_archive_handoff.md)）
+- 生命周期：建议 30 天 ILM 过期，由人工 `mc ilm rule add` 落，**不进入** `28_minio_lifecycle_plan.sh --apply` 白名单（与 `runs/`、`tmp/` 分别独立管理）
+- 与 `runs/` 互斥：顶层 prefix 强制 `argo-logs/`，不会污染 validator 产物
 
 #### `robot-lake` 各层快照
 
@@ -1114,6 +1133,138 @@ cd /opt/robot-dh-infra
 - v1.3 / v1.4 已有表 / bucket / 数据无任何变更
 - `client/robot-dh-v1-5.env` 仅在显式传 `--show-secrets` 时生成，且权限为 `0600`
 
+## 10.8 v1.6 robot platform 元数据基础设施
+
+v1.6 在 v1.5 基础上新增 9 张 PostgreSQL 表 + 7 个运维脚本 + 3 个 client 模板。详细 runbook 与字段语义见：
+
+- [`docs/v1_6_infra_runbook.md`](docs/v1_6_infra_runbook.md)
+- [`docs/v1_6_metadata_schema.md`](docs/v1_6_metadata_schema.md)
+- [`docs/v1_6_storage_and_deadline_notes.md`](docs/v1_6_storage_and_deadline_notes.md)
+
+### 10.8.1 v1.6 范围与边界
+
+v1.6 **只新增不重写**：
+
+- PostgreSQL：`postgres/migrations/005_v1_6_robot_platform.sql`，9 张新表 + 12 个索引 + GRANT，幂等
+- 运维脚本：编号 35–41，全部 `set -euo pipefail`、默认 read-only
+- Client 模板：`client/robot-dh-v1-6.env.example`、`client/k8s-v1-6-secret.example.yaml`、`client/k8s-create-v1-6-secret.example.sh`
+
+v1.6 **明确不做**：
+
+- 不重写 v1.4 / v1.5 已有表 / 索引 / 数据
+- 不修改 `/data/robot-dh` 布局
+- 不自动 `mkfs / parted / fdisk / mount / fstab`
+- 不暴露密码到 stdout / 日志
+- 不实现 Go exporter / 训练平台 / Operator / 前端
+
+### 10.8.2 v1.6 PostgreSQL schema
+
+`postgres/migrations/005_v1_6_robot_platform.sql` 新增 9 张表，全部 `CREATE IF NOT EXISTS`：
+
+| 表 | 主要用途 |
+|----|---------|
+| `qc_contracts` | 数据集族 QC 规则定义（`rules_json` 描述 schema / range / domain check） |
+| `qc_contract_runs` | QC contract 单次执行结果（pass / warn / fail / metrics_json） |
+| `workflow_runs` | v1.6 通用 workflow run 元数据（Argo + 非 Argo） |
+| `workflow_steps` | workflow step 级状态（含 `dataset_id / version / dataset_family` 多源维度） |
+| `asset_profiles` | 单 asset 画像（rows / bytes / null_rate / schema_hash） |
+| `ml_ready_datasets` | 训练就绪 dataset 元数据（train/val/test + dataset card） |
+| `dataset_partitions` | 按 episode / time / size 的分片登记，支持 partial resume |
+| `task_heartbeats` | 长任务运行时心跳（progress_current / progress_total / progress_unit） |
+| `openlineage_events` | OpenLineage 标准事件表（START / COMPLETE / FAIL / ABORT） |
+
+应用与 smoke：
+
+```bash
+cd /opt/robot-dh-infra
+./scripts/35_pg_apply_v1_6_schema.sh
+./scripts/36_pg_v1_6_smoke_test.sh
+```
+
+`35_pg_apply_v1_6_schema.sh` migration 末尾直接对 `robot_dh_app` 执行 `GRANT SELECT/INSERT/UPDATE/DELETE` + 序列 `USAGE/SELECT`，幂等。`36_pg_v1_6_smoke_test.sh` 在 `robot_dh_app` 账号下对 9 张新表插入 + 立即删除 smoke 数据，事务结束不留痕。
+
+### 10.8.3 v1.6 运维脚本（read-only 优先）
+
+| 脚本 | 类型 | 行为 |
+|------|------|------|
+| `35_pg_apply_v1_6_schema.sh` | DDL | 幂等执行 005；只 `CREATE IF NOT EXISTS`，不 DROP，不 TRUNCATE |
+| `36_pg_v1_6_smoke_test.sh` | smoke | 用 app user 在 9 张新表插入 + 删除，事务保护 |
+| `37_audit_v1_6_platform_state.sh` | read-only | 汇总 v1.3–v1.6 所有核心表 row count + 4 个 bucket 占用，落 JSON + 终端 summary |
+| `38_workflow_metadata_report.sh` | read-only | 落 Markdown：最近 workflow / 失败 step / 多源 phase / runtime_events |
+| `39_qc_contract_report.sh` | read-only | 落 Markdown：dataset_family 维度的 pass/warn/fail；表为空时正常输出空报告 |
+| `40_storage_tmp_lifecycle_audit.sh` | read-only / 可选 cleanup | 审计 robot-lake/tmp & robot-dh-artifacts/tmp；`--apply-cleanup` 需交互输入 `APPLY_TMP_CLEANUP`，仅清理 tmp |
+| `41_export_v1_6_client_env.sh` | env 导出 | 默认脱敏；`--show-secrets` 写 `client/robot-dh-v1-6.env`（chmod 600） |
+
+`40_storage_tmp_lifecycle_audit.sh` 与 `28_minio_lifecycle_plan.sh` 的分工：
+
+- 28 号管 ILM 规则（lifecycle policy），由 MinIO 自己执行
+- 37 号是按需即时清理 + 审计，二者并存
+- 两者都**只允许动 tmp/**；脚本内置二次校验，任何对 `raw / ods / dwd / ads / lineage / manifests / runs` 的引用立即 FATAL
+
+### 10.8.4 v1.6 client env / Secret
+
+云端：
+
+```bash
+cd /opt/robot-dh-infra
+./scripts/41_export_v1_6_client_env.sh                 # 默认 public + 脱敏
+./scripts/41_export_v1_6_client_env.sh --show-secrets  # 写 client/robot-dh-v1-6.env (chmod 600)
+```
+
+新增变量：
+
+```text
+ROBOT_DH_PLATFORM_VERSION=1.6
+ROBOT_DH_QC_CONTRACT_BUCKET_PREFIX=s3://robot-lake/qc
+ROBOT_DH_ML_READY_ROOT=s3://robot-lake/ml-ready
+ROBOT_DH_WORKFLOW_TMP_PREFIX=s3://robot-lake/tmp/workflows
+```
+
+WSL / kind 端：
+
+```bash
+# 一次性 namespace / ServiceAccount / RBAC / 空 Secret
+kubectl apply -f client/k8s-v1-6-secret.example.yaml
+
+# 用真实凭据覆盖 Secret
+set -a; source client/robot-dh-v1-6.env; set +a
+./client/k8s-create-v1-6-secret.example.sh
+```
+
+`k8s-create-v1-6-secret.example.sh` apply 前硬校验：
+
+- 任何 `CHANGE_ME` / `PUBLIC_SERVER_IP_OR_DNS` / 空值都拒绝
+- 默认拒绝 `127.0.0.1 / localhost / ::1`，加 `--allow-localhost` 才放行
+- v1.6 三个新前缀必须 `s3://` 开头，且禁止指向 `raw / ods / dwd / ads / lineage / manifests`
+
+### 10.8.5 v1.6 验收
+
+```bash
+cd /opt/robot-dh-infra
+
+./scripts/06_healthcheck.sh
+./scripts/35_pg_apply_v1_6_schema.sh
+./scripts/36_pg_v1_6_smoke_test.sh
+./scripts/37_audit_v1_6_platform_state.sh
+./scripts/38_workflow_metadata_report.sh
+./scripts/39_qc_contract_report.sh
+./scripts/40_storage_tmp_lifecycle_audit.sh
+./scripts/41_export_v1_6_client_env.sh
+```
+
+通过条件：
+
+- 所有脚本以 `0` 退出
+- `35_pg_apply_v1_6_schema.sh` 末尾列出 9 张新表，且重复执行只命中 `CREATE IF NOT EXISTS` 的 no-op 分支
+- `36_pg_v1_6_smoke_test.sh` 在 `robot_dh_app` 账号下 9 张表均可插入 + 删除
+- `37_audit_v1_6_platform_state.sh` 在 `/data/robot-dh/logs/v1_6_platform_state_*.json` 落 JSON 报告
+- `38_workflow_metadata_report.sh` / `39_qc_contract_report.sh` 落 Markdown 报告，表为空时仍正常输出
+- `40_storage_tmp_lifecycle_audit.sh` 默认不删除任何对象，仅生成 Markdown 报告
+- `41_export_v1_6_client_env.sh` 默认输出脱敏，不打印真实密码
+- `client/robot-dh-v1-6.env` 仅在显式 `--show-secrets` 时生成，权限 `0600`
+- v1.3 / v1.4 / v1.5 已有表 / bucket / 数据 / 文件系统无任何变更
+- `/dev/vdb` 仍未挂载，磁盘布局未被修改
+
 ## 11. 备份与恢复
 
 ### PostgreSQL 备份
@@ -1254,6 +1405,23 @@ cd /opt/robot-dh-infra
 ```
 
 通过条件见 [10.7.6 v1.5 验收](#1076-v15-验收)。
+
+### v1.6 robot platform 验收
+
+```bash
+cd /opt/robot-dh-infra
+
+./scripts/06_healthcheck.sh
+./scripts/35_pg_apply_v1_6_schema.sh
+./scripts/36_pg_v1_6_smoke_test.sh
+./scripts/37_audit_v1_6_platform_state.sh
+./scripts/38_workflow_metadata_report.sh
+./scripts/39_qc_contract_report.sh
+./scripts/40_storage_tmp_lifecycle_audit.sh
+./scripts/41_export_v1_6_client_env.sh
+```
+
+通过条件见 [10.8.5 v1.6 验收](#1085-v16-验收)。
 
 ### 如果 Docker 未安装
 

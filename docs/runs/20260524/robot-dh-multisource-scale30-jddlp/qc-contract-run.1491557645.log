@@ -1,0 +1,22 @@
+{
+  "run_id": "qc-bridgedata_v2_v1-efecaff57a",
+  "contract_id": "bridgedata_v2_v1",
+  "status": "PASS",
+  "artifacts": {
+    "report_uri": "s3://robot-lake/qc/bridgedata_v2_scale30/v1/contract_report.json",
+    "report_html_uri": "s3://robot-lake/qc/bridgedata_v2_scale30/v1/contract_report.html",
+    "profile_uri": "s3://robot-lake/qc/bridgedata_v2_scale30/v1/asset_profile.json"
+  },
+  "metrics": {
+    "num_parquet_files": 1,
+    "parquet_valid_rate": 1.0,
+    "traj_len_p50": 108,
+    "traj_len_p95": 131,
+    "language_missing_rate": 0.0,
+    "image_ref_missing_rate": 0.0,
+    "action_column_coverage": 1.0,
+    "environment_count": 1,
+    "skill_count": 1,
+    "episode_count": 3
+  }
+}

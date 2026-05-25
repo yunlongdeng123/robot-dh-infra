@@ -1,0 +1,68 @@
+{"message": "etl_run START: job_id=etl-run-bridgedata_v2_scale30-v1-f52997b5 dataset_uri=s3://robot-datasets/raw/bridgedata_v2_scale30/v1 -> bridgedata_v2_scale30/v1 phase=features resume=True force=False", "timestamp": "2026-05-24T15:22:56.298885+00:00", "level": "INFO"}
+{"message": "  [build-features] s3://robot-lake/ods/bridgedata_v2_scale30/v1 -> s3://robot-lake/dwd/bridgedata_v2_scale30/v1", "timestamp": "2026-05-24T15:22:57.147959+00:00", "level": "INFO"}
+{"message": "build-features: job_id=etl-run-bridgedata_v2_scale30-v1-f52997b5::features input_uri=s3://robot-lake/ods/bridgedata_v2_scale30/v1 output_uri=s3://robot-lake/dwd/bridgedata_v2_scale30/v1", "timestamp": "2026-05-24T15:22:57.150410+00:00", "level": "INFO"}
+{"message": "S3 download_dir: bucket=robot-lake prefix=ods/bridgedata_v2_scale30/v1/ files=5 total_size=0.0 MiB concurrency=8", "timestamp": "2026-05-24T15:22:57.558755+00:00", "level": "INFO"}
+{"message": "etl_run END:   job_id=etl-run-bridgedata_v2_scale30-v1-f52997b5 status=WARN duration=5.03s", "timestamp": "2026-05-24T15:23:01.433798+00:00", "level": "INFO"}
+{"message": "warehouse record_etl_perf_run schema mismatch: (psycopg.errors.UndefinedColumn) column \"started_at\" of relation \"etl_perf_runs\" does not exist\nLINE 1: ...peak_memory_mb, worker_id, status, error_message, started_at...\n                                                             ^\n[SQL: INSERT INTO etl_perf_runs (job_id, run_id, dataset_id, version, phase, input_uri, output_uri, input_bytes, output_bytes, input_rows, output_rows, duration_sec, download_duration_sec, upload_duration_sec, compute_duration_sec, peak_memory_mb, worker_id, status, error_message, started_at, finished_at, metrics_json, created_at) VALUES (%(job_id)s::VARCHAR, %(run_id)s::VARCHAR, %(dataset_id)s::VARCHAR, %(version)s::VARCHAR, %(phase)s::VARCHAR, %(input_uri)s::VARCHAR, %(output_uri)s::VARCHAR, %(input_bytes)s::BIGINT, %(output_bytes)s::BIGINT, %(input_rows)s::BIGINT, %(output_rows)s::BIGINT, %(duration_sec)s, %(download_duration_sec)s, %(upload_duration_sec)s, %(compute_duration_sec)s, %(peak_memory_mb)s, %(worker_id)s::VARCHAR, %(status)s::VARCHAR, %(error_message)s::VARCHAR, %(started_at)s::TIMESTAMP WITH TIME ZONE, %(finished_at)s::TIMESTAMP WITH TIME ZONE, %(metrics_json)s::JSONB, %(created_at)s::TIMESTAMP WITH TIME ZONE) RETURNING etl_perf_runs.id]\n[parameters: {'job_id': 'etl-run-bridgedata_v2_scale30-v1-f52997b5::features', 'run_id': 'etl-run-bridgedata_v2_scale30-v1-f52997b5', 'dataset_id': 'bridgedata_v2_scale30', 'version': 'v1', 'phase': 'build_features', 'input_uri': None, 'output_uri': 's3://robot-lake/dwd/bridgedata_v2_scale30/v1', 'input_bytes': 0, 'output_bytes': 54951, 'input_rows': 0, 'output_rows': 344, 'duration_sec': 3.7604055404663086, 'download_duration_sec': 0.0, 'upload_duration_sec': 0.0, 'compute_duration_sec': 0.0, 'peak_memory_mb': 0.0, 'worker_id': '', 'status': 'WARN', 'error_message': None, 'started_at': None, 'finished_at': None, 'metrics_json': Jsonb({}), 'created_at': datetime.datetime(2026, 5, 24, 15, 23, 1, 872473, tzinfo=datetime.timezone.utc)}]\n(Background on this error at: https://sqlalche.me/e/20/f405). Apply the matching schema migration in the infra project first.", "timestamp": "2026-05-24T15:23:01.919106+00:00", "level": "ERROR"}
+{"message": "perf record schema mismatch, deferred to pending store: local=/tmp/.cache/robot-dh/perf-records-pending/bridgedata_v2_scale30/v1/build_features/etl-run-bridgedata_v2_scale30-v1-f52997b5__features-86aa1f87.json s3=s3://robot-dh-artifacts/perf-records-pending/bridgedata_v2_scale30/v1/build_features/etl-run-bridgedata_v2_scale30-v1-f52997b5__features-86aa1f87.json. Run schema migration on infra side then `robot-dh perf reingest-pending` to backfill.", "timestamp": "2026-05-24T15:23:01.969808+00:00", "level": "ERROR"}
+{
+  "dataset_id": "bridgedata_v2_scale30",
+  "version": "v1",
+  "raw_uri": "s3://robot-datasets/raw/bridgedata_v2_scale30/v1",
+  "ods_uri": "s3://robot-lake/ods/bridgedata_v2_scale30/v1",
+  "dwd_uri": "s3://robot-lake/dwd/bridgedata_v2_scale30/v1",
+  "ads_uri": null,
+  "job_id": "etl-run-bridgedata_v2_scale30-v1-f52997b5",
+  "status": "WARN",
+  "duration_sec": 5.032328367233276,
+  "error": null,
+  "normalize": null,
+  "features": {
+    "dataset_id": "bridgedata_v2_scale30",
+    "version": "v1",
+    "output_uri": "s3://robot-lake/dwd/bridgedata_v2_scale30/v1",
+    "manifest_uri": "s3://robot-lake/dwd/bridgedata_v2_scale30/v1/_manifest.json",
+    "job_id": "etl-run-bridgedata_v2_scale30-v1-f52997b5::features",
+    "duration_job_sec": 3.7604055404663086,
+    "job_status": "WARN",
+    "num_press_events": 6,
+    "cluster_silhouette": null,
+    "files": [
+      {
+        "path": "pose_feature.parquet",
+        "uri": "s3://robot-lake/dwd/bridgedata_v2_scale30/v1/pose_feature.parquet",
+        "format": "parquet",
+        "size_bytes": 28839,
+        "row_count": 314,
+        "checksum_sha256": "04e91ae815d5cef3989a820b7371a4bf2fd1c7d407fe9668aa213c587b0b9741"
+      },
+      {
+        "path": "press_event.parquet",
+        "uri": "s3://robot-lake/dwd/bridgedata_v2_scale30/v1/press_event.parquet",
+        "format": "parquet",
+        "size_bytes": 8144,
+        "row_count": 6,
+        "checksum_sha256": "9f5b9d501a9bf80008a1664e0935badd12e38f8718751dc2f4e0b22d526f0d30"
+      },
+      {
+        "path": "trajectory_segment.parquet",
+        "uri": "s3://robot-lake/dwd/bridgedata_v2_scale30/v1/trajectory_segment.parquet",
+        "format": "parquet",
+        "size_bytes": 7755,
+        "row_count": 21,
+        "checksum_sha256": "5dc5ed86ded745ea7c2dad61f9b3a5fba63d06c3cf3ccf617e05d55b4dfd93a3"
+      },
+      {
+        "path": "episode_feature.parquet",
+        "uri": "s3://robot-lake/dwd/bridgedata_v2_scale30/v1/episode_feature.parquet",
+        "format": "parquet",
+        "size_bytes": 10213,
+        "row_count": 3,
+        "checksum_sha256": "4bdcc2c9729cffb5b67c9c3cd30ae281cf4f3d599a66249e429721a2ac571d14"
+      }
+    ]
+  },
+  "ads": null,
+  "summary_uri": null,
+  "phase": "features"
+}

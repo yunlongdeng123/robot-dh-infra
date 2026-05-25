@@ -1,0 +1,77 @@
+{"event": "runner_boot", "argv": ["etl", "run", "--dataset", "s3://robot-datasets/raw/bridgedata_v2_scale30/v1", "--dataset-id", "bridgedata_v2_scale30", "--version", "v1", "--lake-root", "s3://robot-lake", "--phase", "normalize", "--resume", "--heartbeat-interval-sec", "60", "--workflow-name", "robot-dh-multisource-scale30-bxpjl", "--log-format", "json"], "python": "3.11.15", "ts": 1779673735.5670438, "env_keys": ["ROBOT_DH_API_PORT", "ROBOT_DH_API_PORT_8000_TCP", "ROBOT_DH_API_PORT_8000_TCP_ADDR", "ROBOT_DH_API_PORT_8000_TCP_PORT", "ROBOT_DH_API_PORT_8000_TCP_PROTO", "ROBOT_DH_API_SERVICE_HOST", "ROBOT_DH_API_SERVICE_PORT", "ROBOT_DH_API_SERVICE_PORT_HTTP", "ROBOT_DH_ARGO_NAMESPACE", "ROBOT_DH_ARTIFACT_STORE", "ROBOT_DH_DB_URI", "ROBOT_DH_DOWNLOAD_PROGRESS_INTERVAL_SEC", "ROBOT_DH_EVENTS_DIR", "ROBOT_DH_EXPORTER_PORT", "ROBOT_DH_EXPORTER_PORT_9108_TCP", "ROBOT_DH_EXPORTER_PORT_9108_TCP_ADDR", "ROBOT_DH_EXPORTER_PORT_9108_TCP_PORT", "ROBOT_DH_EXPORTER_PORT_9108_TCP_PROTO", "ROBOT_DH_EXPORTER_SERVICE_HOST", "ROBOT_DH_EXPORTER_SERVICE_PORT", "ROBOT_DH_EXPORTER_SERVICE_PORT_METRICS", "ROBOT_DH_INPUT_CACHE_DIR", "ROBOT_DH_ML_READY_ROOT", "ROBOT_DH_PLATFORM_VERSION", "ROBOT_DH_QC_CONTRACT_BUCKET_PREFIX", "ROBOT_DH_REDIS_URL", "ROBOT_DH_RELEASE_VERSION", "ROBOT_DH_S3_ACCESS_KEY", "ROBOT_DH_S3_ARTIFACT_BUCKET", "ROBOT_DH_S3_BACKUP_BUCKET", "ROBOT_DH_S3_DATA_BUCKET", "ROBOT_DH_S3_ENDPOINT_URL", "ROBOT_DH_S3_LAKE_BUCKET", "ROBOT_DH_S3_REGION", "ROBOT_DH_S3_SECRET_KEY", "ROBOT_DH_WORKFLOW_TMP_PREFIX"]}
+{"message": "etl_run START: job_id=etl-run-bridgedata_v2_scale30-v1-3f0be044 dataset_uri=s3://robot-datasets/raw/bridgedata_v2_scale30/v1 -> bridgedata_v2_scale30/v1 phase=normalize resume=True force=False", "timestamp": "2026-05-25T01:48:55.575025+00:00", "level": "INFO"}
+{"message": "  [normalize] s3://robot-datasets/raw/bridgedata_v2_scale30/v1 -> s3://robot-lake/ods/bridgedata_v2_scale30/v1", "timestamp": "2026-05-25T01:48:56.970042+00:00", "level": "INFO"}
+{"message": "normalize: job_id=etl-run-bridgedata_v2_scale30-v1-3f0be044::normalize dataset_uri=s3://robot-datasets/raw/bridgedata_v2_scale30/v1 output_uri=s3://robot-lake/ods/bridgedata_v2_scale30/v1 resume=True force=False", "timestamp": "2026-05-25T01:48:56.970211+00:00", "level": "INFO"}
+{"message": "normalize SKIP: s3://robot-lake/ods/bridgedata_v2_scale30/v1 already has manifest; pass force=True to rerun", "timestamp": "2026-05-25T01:48:57.131098+00:00", "level": "INFO"}
+{"message": "etl_run END:   job_id=etl-run-bridgedata_v2_scale30-v1-3f0be044 status=OK duration=1.63s", "timestamp": "2026-05-25T01:48:57.729751+00:00", "level": "INFO"}
+{"message": "warehouse record_etl_perf_run schema mismatch: (psycopg.errors.UndefinedColumn) column \"started_at\" of relation \"etl_perf_runs\" does not exist\nLINE 1: ...peak_memory_mb, worker_id, status, error_message, started_at...\n                                                             ^\n[SQL: INSERT INTO etl_perf_runs (job_id, run_id, dataset_id, version, phase, input_uri, output_uri, input_bytes, output_bytes, input_rows, output_rows, duration_sec, download_duration_sec, upload_duration_sec, compute_duration_sec, peak_memory_mb, worker_id, status, error_message, started_at, finished_at, metrics_json, created_at) VALUES (%(job_id)s::VARCHAR, %(run_id)s::VARCHAR, %(dataset_id)s::VARCHAR, %(version)s::VARCHAR, %(phase)s::VARCHAR, %(input_uri)s::VARCHAR, %(output_uri)s::VARCHAR, %(input_bytes)s::BIGINT, %(output_bytes)s::BIGINT, %(input_rows)s::BIGINT, %(output_rows)s::BIGINT, %(duration_sec)s, %(download_duration_sec)s, %(upload_duration_sec)s, %(compute_duration_sec)s, %(peak_memory_mb)s, %(worker_id)s::VARCHAR, %(status)s::VARCHAR, %(error_message)s::VARCHAR, %(started_at)s::TIMESTAMP WITH TIME ZONE, %(finished_at)s::TIMESTAMP WITH TIME ZONE, %(metrics_json)s::JSONB, %(created_at)s::TIMESTAMP WITH TIME ZONE) RETURNING etl_perf_runs.id]\n[parameters: {'job_id': 'etl-run-bridgedata_v2_scale30-v1-3f0be044::normalize', 'run_id': 'etl-run-bridgedata_v2_scale30-v1-3f0be044', 'dataset_id': 'bridgedata_v2_scale30', 'version': 'v1', 'phase': 'normalize', 'input_uri': 's3://robot-datasets/raw/bridgedata_v2_scale30/v1', 'output_uri': 's3://robot-lake/ods/bridgedata_v2_scale30/v1', 'input_bytes': 238440784, 'output_bytes': 39769, 'input_rows': 314, 'output_rows': 318, 'duration_sec': 0.0, 'download_duration_sec': 0.0, 'upload_duration_sec': 0.0, 'compute_duration_sec': 0.0, 'peak_memory_mb': 0.0, 'worker_id': '', 'status': 'OK', 'error_message': None, 'started_at': None, 'finished_at': None, 'metrics_json': Jsonb({}), 'created_at': datetime.datetime(2026, 5, 25, 1, 48, 58, 491440, tzinfo=datetime.timezone.utc)}]\n(Background on this error at: https://sqlalche.me/e/20/f405). Apply the matching schema migration in the infra project first.", "timestamp": "2026-05-25T01:48:58.782113+00:00", "level": "ERROR"}
+{"message": "perf record schema mismatch, deferred to pending store: local=/tmp/.cache/robot-dh/perf-records-pending/bridgedata_v2_scale30/v1/normalize/etl-run-bridgedata_v2_scale30-v1-3f0be044__normalize-71d7fc28.json s3=s3://robot-dh-artifacts/perf-records-pending/bridgedata_v2_scale30/v1/normalize/etl-run-bridgedata_v2_scale30-v1-3f0be044__normalize-71d7fc28.json. Run schema migration on infra side then `robot-dh perf reingest-pending` to backfill.", "timestamp": "2026-05-25T01:48:58.859146+00:00", "level": "ERROR"}
+{
+  "dataset_id": "bridgedata_v2_scale30",
+  "version": "v1",
+  "raw_uri": "s3://robot-datasets/raw/bridgedata_v2_scale30/v1",
+  "ods_uri": "s3://robot-lake/ods/bridgedata_v2_scale30/v1",
+  "dwd_uri": "s3://robot-lake/dwd/bridgedata_v2_scale30/v1",
+  "ads_uri": null,
+  "job_id": "etl-run-bridgedata_v2_scale30-v1-3f0be044",
+  "status": "OK",
+  "duration_sec": 1.625349760055542,
+  "error": null,
+  "normalize": {
+    "dataset_id": "bridgedata_v2_scale30",
+    "version": "v1",
+    "episode_id": "bridgedata_v2_scale30",
+    "output_uri": "s3://robot-lake/ods/bridgedata_v2_scale30/v1",
+    "manifest_uri": "s3://robot-lake/ods/bridgedata_v2_scale30/v1/_manifest.json",
+    "pose_uri": "s3://robot-lake/ods/bridgedata_v2_scale30/v1/pose.parquet",
+    "video_meta_uri": "s3://robot-lake/ods/bridgedata_v2_scale30/v1/video_meta.parquet",
+    "episode_meta_uri": "s3://robot-lake/ods/bridgedata_v2_scale30/v1/episode_meta.parquet",
+    "num_samples": 314,
+    "duration_sec": 610.0,
+    "source_uris": [
+      "s3://robot-datasets/raw/bridgedata_v2_scale30/v1"
+    ],
+    "job_id": "etl-run-bridgedata_v2_scale30-v1-3f0be044::normalize",
+    "duration_job_sec": 0.0,
+    "files": [
+      {
+        "path": "pose.parquet",
+        "uri": "s3://robot-lake/ods/bridgedata_v2_scale30/v1/pose.parquet",
+        "format": "parquet",
+        "size_bytes": 27147,
+        "row_count": 314,
+        "checksum_sha256": "4b96787d62d5834adacc7b72ca08b27e3e548c5aca7749c854776208ca51d32b"
+      },
+      {
+        "path": "video_meta.parquet",
+        "uri": "s3://robot-lake/ods/bridgedata_v2_scale30/v1/video_meta.parquet",
+        "format": "parquet",
+        "size_bytes": 4988,
+        "row_count": 1,
+        "checksum_sha256": "09c42b63d2a414818c43ee7a1a125a060e913ff05260c7b54f1f590fe64c81b8"
+      },
+      {
+        "path": "episode_meta.parquet",
+        "uri": "s3://robot-lake/ods/bridgedata_v2_scale30/v1/episode_meta.parquet",
+        "format": "parquet",
+        "size_bytes": 7634,
+        "row_count": 3,
+        "checksum_sha256": "9eeaaf0385e4610720ec2d8af04bfcd465d59a0ddd023018907032b08717885e"
+      }
+    ],
+    "status": "SKIPPED",
+    "completed_steps": [
+      "materialize_input",
+      "load_bundles",
+      "write_pose_parquet",
+      "write_video_meta",
+      "write_episode_meta",
+      "upload_outputs",
+      "write_manifest"
+    ]
+  },
+  "features": null,
+  "ads": null,
+  "summary_uri": null,
+  "phase": "normalize"
+}

@@ -1,0 +1,28 @@
+{"event": "runner_boot", "argv": ["etl", "run", "--dataset", "s3://robot-datasets/raw/droid_lerobot_scale30/v1", "--dataset-id", "droid_lerobot_scale30", "--version", "v1", "--lake-root", "s3://robot-lake", "--phase", "normalize", "--resume", "--heartbeat-interval-sec", "60", "--workflow-name", "robot-dh-multisource-scale30-bxpjl", "--log-format", "json"], "python": "3.11.15", "ts": 1779687783.7980711, "env_keys": ["ROBOT_DH_API_PORT", "ROBOT_DH_API_PORT_8000_TCP", "ROBOT_DH_API_PORT_8000_TCP_ADDR", "ROBOT_DH_API_PORT_8000_TCP_PORT", "ROBOT_DH_API_PORT_8000_TCP_PROTO", "ROBOT_DH_API_SERVICE_HOST", "ROBOT_DH_API_SERVICE_PORT", "ROBOT_DH_API_SERVICE_PORT_HTTP", "ROBOT_DH_ARGO_NAMESPACE", "ROBOT_DH_ARTIFACT_STORE", "ROBOT_DH_DB_URI", "ROBOT_DH_DOWNLOAD_PROGRESS_INTERVAL_SEC", "ROBOT_DH_EVENTS_DIR", "ROBOT_DH_EXPORTER_PORT", "ROBOT_DH_EXPORTER_PORT_9108_TCP", "ROBOT_DH_EXPORTER_PORT_9108_TCP_ADDR", "ROBOT_DH_EXPORTER_PORT_9108_TCP_PORT", "ROBOT_DH_EXPORTER_PORT_9108_TCP_PROTO", "ROBOT_DH_EXPORTER_SERVICE_HOST", "ROBOT_DH_EXPORTER_SERVICE_PORT", "ROBOT_DH_EXPORTER_SERVICE_PORT_METRICS", "ROBOT_DH_INPUT_CACHE_DIR", "ROBOT_DH_ML_READY_ROOT", "ROBOT_DH_PLATFORM_VERSION", "ROBOT_DH_QC_CONTRACT_BUCKET_PREFIX", "ROBOT_DH_REDIS_URL", "ROBOT_DH_RELEASE_VERSION", "ROBOT_DH_S3_ACCESS_KEY", "ROBOT_DH_S3_ARTIFACT_BUCKET", "ROBOT_DH_S3_BACKUP_BUCKET", "ROBOT_DH_S3_DATA_BUCKET", "ROBOT_DH_S3_ENDPOINT_URL", "ROBOT_DH_S3_LAKE_BUCKET", "ROBOT_DH_S3_REGION", "ROBOT_DH_S3_SECRET_KEY", "ROBOT_DH_WORKFLOW_TMP_PREFIX"]}
+{"message": "etl_run START: job_id=etl-run-droid_lerobot_scale30-v1-c38b9fb3 dataset_uri=s3://robot-datasets/raw/droid_lerobot_scale30/v1 -> droid_lerobot_scale30/v1 phase=normalize resume=True force=False", "timestamp": "2026-05-25T05:43:03.806912+00:00", "level": "INFO"}
+{"message": "  [normalize] s3://robot-datasets/raw/droid_lerobot_scale30/v1 -> s3://robot-lake/ods/droid_lerobot_scale30/v1", "timestamp": "2026-05-25T05:43:04.179451+00:00", "level": "INFO"}
+{"message": "normalize: job_id=etl-run-droid_lerobot_scale30-v1-c38b9fb3::normalize dataset_uri=s3://robot-datasets/raw/droid_lerobot_scale30/v1 output_uri=s3://robot-lake/ods/droid_lerobot_scale30/v1 resume=True force=False", "timestamp": "2026-05-25T05:43:04.179595+00:00", "level": "INFO"}
+{"message": "heartbeat task=etl-run-droid_lerobot_scale30-v1-c38b9fb3::normalize phase=normalize progress=None/None msg=phase_start", "timestamp": "2026-05-25T05:43:04.412407+00:00", "level": "INFO"}
+{"message": "heartbeat task=etl-run-droid_lerobot_scale30-v1-c38b9fb3::normalize phase=normalize.materialize_input progress=None/None msg=materialize_input.start", "timestamp": "2026-05-25T05:43:04.447575+00:00", "level": "INFO"}
+{"message": "materialize_input: lerobot v2 layout detected, skipping prefixes=('videos/',)", "timestamp": "2026-05-25T05:43:04.945148+00:00", "level": "INFO"}
+{"message": "S3 download_dir: bucket=robot-datasets prefix=raw/droid_lerobot_scale30/v1/ files=532 total_size=12058.9 MiB concurrency=8 excluded=14 files (6318.0 MiB)", "timestamp": "2026-05-25T05:43:05.090523+00:00", "level": "INFO"}
+{"message": "heartbeat task=etl-run-droid_lerobot_scale30-v1-c38b9fb3::normalize phase=normalize.materialize_input progress=None/None msg=phase_failed: RetriesExceededError", "timestamp": "2026-05-25T09:45:59.756363+00:00", "level": "INFO"}
+{"message": "etl_run FAIL: Max Retries Exceeded", "timestamp": "2026-05-25T09:45:59.890013+00:00", "level": "ERROR"}
+{"message": "etl_run END:   job_id=etl-run-droid_lerobot_scale30-v1-c38b9fb3 status=FAIL duration=14576.02s", "timestamp": "2026-05-25T09:45:59.890127+00:00", "level": "INFO"}
+{
+  "dataset_id": "droid_lerobot_scale30",
+  "version": "v1",
+  "raw_uri": "s3://robot-datasets/raw/droid_lerobot_scale30/v1",
+  "ods_uri": "s3://robot-lake/ods/droid_lerobot_scale30/v1",
+  "dwd_uri": "s3://robot-lake/dwd/droid_lerobot_scale30/v1",
+  "ads_uri": null,
+  "job_id": "etl-run-droid_lerobot_scale30-v1-c38b9fb3",
+  "status": "FAIL",
+  "duration_sec": 14576.01999258995,
+  "error": "Max Retries Exceeded",
+  "normalize": null,
+  "features": null,
+  "ads": null,
+  "summary_uri": null,
+  "phase": "normalize"
+}

@@ -1,0 +1,65 @@
+image: struct<bytes: binary, path: string>
+  child 0, bytes: binary
+  child 1, path: string
+observation: struct<image: struct<bytes: binary, path: string>, task: string>
+  child 0, image: struct<bytes: binary, path: string>
+      child 0, bytes: binary
+      child 1, path: string
+  child 1, task: string
+action: struct<pose: struct<x: double, y: double, z: double, roll: double, pitch: double, yaw: double>, gras (... 10 chars omitted)
+  child 0, pose: struct<x: double, y: double, z: double, roll: double, pitch: double, yaw: double>
+      child 0, x: double
+      child 1, y: double
+      child 2, z: double
+      child 3, roll: double
+      child 4, pitch: double
+      child 5, yaw: double
+  child 1, grasp: double
+supervision: double
+episode_idx: int64
+step_idx: int64
+absolute_action: struct<pose: struct<x: double, y: double, z: double, roll: double, pitch: double, yaw: double>, gras (... 10 chars omitted)
+  child 0, pose: struct<x: double, y: double, z: double, roll: double, pitch: double, yaw: double>
+      child 0, x: double
+      child 1, y: double
+      child 2, z: double
+      child 3, roll: double
+      child 4, pitch: double
+      child 5, yaw: double
+  child 1, grasp: double
+state: struct<end_effector_pose: struct<x: double, y: double, z: double, roll: double, pitch: double, yaw:  (... 104 chars omitted)
+  child 0, end_effector_pose: struct<x: double, y: double, z: double, roll: double, pitch: double, yaw: double>
+      child 0, x: double
+      child 1, y: double
+      child 2, z: double
+      child 3, roll: double
+      child 4, pitch: double
+      child 5, yaw: double
+  child 1, is_first: int64
+  child 2, is_last: int64
+  child 3, is_terminal: int64
+  child 4, language_embedding: list<element: double>
+      child 0, element: double
+timestamp: double
+metadata: struct<num_depth_cams: int64, num_episodes: string, num_rgb_cams: int64, num_wrist_cams: int64, acti (... 358 chars omitted)
+  child 0, num_depth_cams: int64
+  child 1, num_episodes: string
+  child 2, num_rgb_cams: int64
+  child 3, num_wrist_cams: int64
+  child 4, action_space: string
+  child 5, control_frequency: string
+  child 6, data_collect_method: string
+  child 7, dataset: string
+  child 8, description: string
+  child 9, file_size_gb: double
+  child 10, gripper: string
+  child 11, has_camera_calibration: string
+  child 12, has_proprioception: string
+  child 13, has_suboptimal: string
+  child 14, language_annotations: string
+  child 15, registered_dataset_name: string
+  child 16, robot: string
+  child 17, robot_morphology: string
+  child 18, scene_type: string
+-- schema metadata --
+huggingface: '{"info": {"features": {"image": {"_type": "Image"}, "observ' + 2630

@@ -1,0 +1,31 @@
+{
+  "plan_path": "s3://robot-lake/tmp/robot-dh-multisource-scale30-qptk9/bridgedata_v2_scale30_partition_plan.json",
+  "plan": {
+    "partition_plan_id": "part-e2fae89d8116",
+    "dataset_id": "bridgedata_v2_scale30",
+    "version": "v1",
+    "dataset_uri": "s3://robot-datasets/raw/bridgedata_v2_scale30/v1",
+    "dataset_family": "bridge",
+    "partition_type": "parquet_file",
+    "target_partition_size_bytes": 2147483648,
+    "total_input_bytes": 238440784,
+    "partitions": [
+      {
+        "partition_id": "part-e2fae89d8116-p000",
+        "partition_index": 0,
+        "dataset_uri": "s3://robot-datasets/raw/bridgedata_v2_scale30/v1",
+        "partition_uri": "s3://robot-datasets/raw/bridgedata_v2_scale30/v1/data/shard_0-00000-of-00001.parquet",
+        "input_files": [
+          "s3://robot-datasets/raw/bridgedata_v2_scale30/v1/data/shard_0-00000-of-00001.parquet"
+        ],
+        "input_bytes": 238436886,
+        "estimated_rows": 314,
+        "metrics": {
+          "family": "bridge",
+          "file_count": 1
+        }
+      }
+    ],
+    "created_at": "2026-05-24T15:22:18Z"
+  }
+}
